@@ -43,8 +43,7 @@ gui/org.freedesktop.gameconqueror.policy.in
 po/.intltool-merge-cache
 po/Makefile.in.in
 po/POTFILES
-po/ja.gmo
-po/ru.gmo
+po/??.gmo
 po/stamp-it
 
 # Android builds
