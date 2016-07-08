@@ -904,6 +904,12 @@ class GameConqueror():
             if t in TYPENAMES_S2G:
                 vt = TYPENAMES_S2G[t]
                 break
+        # Check for an (addr, type) duplicate
+        for row in self.cheatlist_liststore:
+            if row[3] == addr and row[4] == vt: # Found duplicate -> remove dupe before adding
+                self.cheatlist_liststore.remove(row.iter)
+                break
+        # Add new row
         if at_end:
             self.cheatlist_liststore.append(['=', False, description, addr, vt, str(value), True])
         else:
