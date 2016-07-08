@@ -54,7 +54,6 @@ gettext.install(GETTEXT_PACKAGE, LOCALEDIR, names=('_'));
 CLIPBOARD = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 WORK_DIR = os.path.dirname(sys.argv[0])
 PROGRESS_INTERVAL = 100 # for scan progress updates
-DATA_WORKER_INTERVAL = 500 # for read(update)/write(lock)
 SCAN_RESULT_LIST_LIMIT = 10000 # maximal number of entries that can be displayed
 
 SCAN_VALUE_TYPES = ['int', 'int8', 'int16', 'int32', 'int64', 'float', 'float32', 'float64', 'number', 'bytearray', 'string']
@@ -166,6 +165,17 @@ class GameConqueror():
         # apply setting
         self.search_scope_scale.set_value(SETTINGS['search_scope'])
 
+        ###
+        # Set interval spin button
+        self.interval_spinbutton = self.builder.get_object('Interval_SpinButton')
+        self.interval_spinbutton_adjustment = Gtk.Adjustment(lower=10, upper=10000, step_incr=10)
+        self.interval_spinbutton.set_adjustment(self.interval_spinbutton_adjustment)
+        
+        ###
+        # Start data worker timeout
+        self.data_worker_interval = 500 # for read(update)/write(lock)
+        self.interval_spinbutton.set_value(self.data_worker_interval)
+        self.data_worker_id = GLib.timeout_add(self.data_worker_interval, self.data_worker)
 
 
         # init scanresult treeview
@@ -336,7 +346,7 @@ class GameConqueror():
         self.backend = GameConquerorBackend(os.path.join(LIBDIR, 'libscanmem.so.1'))
         self.check_backend_version()
         self.is_first_scan = True
-        GLib.timeout_add(DATA_WORKER_INTERVAL, self.data_worker)
+        GLib.timeout_add(self.data_worker_interval, self.data_worker)
         self.command_lock = threading.RLock()
 
 
@@ -454,6 +464,12 @@ class GameConqueror():
 
     def SearchScope_Scale_format_value_cb(self, scale, value, Data=None):
         return SEARCH_SCOPE_NAMES[int(value)]
+
+    def Interval_SpinButton_value_changed_cb(self, spin_button, data=None):
+        self.data_worker_interval = spin_button.get_value()
+        GObject.source_remove(self.data_worker_id)
+        self.data_worker_id = GLib.timeout_add(self.data_worker_interval, self.data_worker)
+        return True
 
     def Value_Input_activate_cb(self, entry, data=None):
         self.do_scan()
