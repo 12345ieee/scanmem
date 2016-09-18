@@ -20,7 +20,6 @@
 import sys
 import os
 import ctypes
-import tempfile
 
 import misc
 
@@ -50,20 +49,22 @@ class GameConquerorBackend():
             f.argtypes = v[1:]
 
     # `get_output` will return in a string what libscanmem would print to stdout
-    def send_command(self, cmd, get_output = False):
+    def send_command(self, cmd, get_output=False):
         if get_output:
-            with tempfile.TemporaryFile() as directed_file:
-                backup_stdout_fileno = os.dup(sys.stdout.fileno())
-                os.dup2(directed_file.fileno(), sys.stdout.fileno())
+            pipe_r, pipe_w = os.pipe()
+            backup_stdout_fileno = os.dup(sys.stdout.fileno())
+            os.dup2(pipe_w, sys.stdout.fileno())
 
-                self.lib.sm_backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
+            self.lib.sm_backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
 
-                os.dup2(backup_stdout_fileno, sys.stdout.fileno())
-                os.close(backup_stdout_fileno)
-                directed_file.seek(0)
-                return directed_file.read()
+            os.dup2(backup_stdout_fileno, sys.stdout.fileno())
+            os.close(backup_stdout_fileno)
+            os.close(pipe_w)
+            
+            with os.fdopen(pipe_r, 'rb') as pipehandle:
+                return pipehandle.read()
+
         else:
-
             self.lib.sm_backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
 
     def get_match_count(self):
