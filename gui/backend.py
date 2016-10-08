@@ -20,6 +20,7 @@
 import sys
 import os
 import ctypes
+import threading
 
 import misc
 
@@ -48,21 +49,39 @@ class GameConquerorBackend():
             f.restype = v[0]
             f.argtypes = v[1:]
 
+    def exec_and_kill(self, cmd):
+        self.lib.backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
+        print 'a'
+        os.close(sys.stdout.fileno())
+
     # `get_output` will return in a string what libscanmem would print to stdout
     def send_command(self, cmd, get_output=False):
         if get_output:
+            libthread = threading.Thread(target=self.lib.sm_backend_exec_cmd,
+                                         args=(cmd,))
+
             pipe_r, pipe_w = os.pipe()
-            backup_stdout_fileno = os.dup(sys.stdout.fileno())
+            s = ''
+            backup_stdout_filedesc = os.dup(sys.stdout.fileno())
+            sys.stderr.write('bef start\n')
+
             os.dup2(pipe_w, sys.stdout.fileno())
-
-            self.lib.sm_backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
-
+            libthread.start()
+            sys.stderr.write('started\n')
+            while 1:
+                chunk = os.read(pipe_r, 1)
+                sys.stderr.write('ch: *'+chunk+'*\n')
+                if chunk=='': break
+                s += chunk
+            sys.stderr.write('s built\n')
+            libthread.join()
+            sys.stderr.write('joined\n')
             os.dup2(backup_stdout_fileno, sys.stdout.fileno())
+
+            sys.stderr.write('after read\n')
             os.close(backup_stdout_fileno)
-            os.close(pipe_w)
             
-            with os.fdopen(pipe_r, 'rb') as pipehandle:
-                return pipehandle.read()
+            return s
 
         else:
             self.lib.sm_backend_exec_cmd(ctypes.c_char_p(misc.encode(cmd)))
