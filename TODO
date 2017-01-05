@@ -1,10 +1,11 @@
 Next Version
 ============
 * some sort of regression testing, probably using dejagnu.
+    - test target that mmaps testfile, then dregions the rest using dejagnu
+    - then can test searching using tests.
 * design a more efficient format for snapshot.
 * inefficient use of memory, lots of matches uses way too much memory, fix this.
 * automatically support zero and one based values.
-* autotool the build.
 * add inverted matches for set and delete, eg
     - delete !13  - delete all matches except 13
     - set !13,12,10=3 - set all matches except 13,12 and 10 to 3.
@@ -15,7 +16,14 @@ Next Version
 * optional float rounding techniques, eg floor(), ceil(), round(), rint(), etc?
 * add similar syntax as set to dregion, delete and watch.
     - watch 12,23,5 - watch these three matches
-
+* improve show command.
+* known type: 0x324/I <- ints with value 0x324
+* > 4 ; value is now greater than 4
+* show log
+    -> ring buffer of 512 debug messages, that may help on debug
+    -> eg push("a region was removed as it appears to have been umapped");
+    -> show log
+        - [xx:yy] a region.."
 Future
 ======
 * macro support
@@ -24,3 +32,4 @@ Future
 * support more esoteric number formats, such as bcd, ascii, etc.
 * pagination
 * save state to a file, so you can apply it to a different pid.
+* find strings, or pointers to strings as well?

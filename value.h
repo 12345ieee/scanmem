@@ -1,7 +1,7 @@
 /*
-*
-* $Id: value.h,v 1.3 2007-04-08 23:09:18+01 taviso Exp $
-*
+
+ $Id: value.h,v 1.4 2007-04-11 10:43:27+01 taviso Exp $
+
 */
 
 #ifndef _VALUE_INC

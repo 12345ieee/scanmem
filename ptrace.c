@@ -1,8 +1,40 @@
 /*
-*
-* $Id: ptrace.c,v 1.16 2007-04-08 23:09:18+01 taviso Exp $
+ $Id: ptrace.c,v 1.20 2007-06-05 01:45:35+01 taviso Exp taviso $
+ 
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+/* prepare LARGEFILE support */
+#ifdef _FILE_OFFSET_BITS
+# undef _FILE_OFFSET_BITS
+#endif
+#define _FILE_OFFSET_BITS 64
+#ifdef _LARGEFILE64_SOURCE
+# undef _LARGEFILE64_SOURCE
+#endif
+#define _LARGEFILE64_SOURCE
+#ifdef _XOPEN_SOURCE
+# undef _XOPEN_SOURCE
+#endif
+#define _XOPEN_SOURCE 500
+
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -13,6 +45,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <fcntl.h>
 
 #ifdef __GNUC__
 # define EXPECT(x,y) __builtin_expect(x, y)
@@ -72,7 +106,7 @@ bool detach(pid_t target)
  * 
  * This routine could just call ptrace(PEEKDATA), but using a cache reduces
  * the number of peeks required by 70% when reading large chunks of
- * consecutive addreses.
+ * consecutive addresses.
  */
 
 bool peekdata(pid_t pid, void *addr, value_t * result)
@@ -123,6 +157,34 @@ bool peekdata(pid_t pid, void *addr, value_t * result)
 
     /* check if ptrace() succeeded */
     if (EXPECT(peekbuf.cache.peeks[peekbuf.size] == -1L && errno != 0, false)) {
+        /* its possible i'm trying to read partially oob */
+        if (errno == EIO || errno == EFAULT) {
+            unsigned i;
+            long l;
+            
+            /* read backwards until we get a good read, then shift out the right value */
+            for (i = 1, errno = 0; i < sizeof(long); i++, errno = 0) {
+                if ((l = ptrace(PTRACE_PEEKDATA, pid, reqaddr - i, NULL)) == -1L && 
+                    (errno == EIO || errno == EFAULT))
+                        continue;
+                /* wow, that worked */
+                result->value.tslong = l;
+                result->value.tulong >>= i * CHAR_BIT;
+                
+                /* note: some of these are impossible */
+                if (sizeof(float) > sizeof(long) - i)
+                    result->flags.tfloat = 0;
+                if (sizeof(long) > sizeof(long) - i)
+                    result->flags.wlong = 0;
+                if (sizeof(int) > sizeof(long) - i)
+                    result->flags.wint = 0;
+                if (sizeof(short) > sizeof(long) - i)
+                    result->flags.wshort = 0;
+                if (sizeof(char) > sizeof(long) - i)
+                    result->flags.wchar = 0;
+                return true;
+            }
+        }
         /* i wont print a message here, would be very noisy if a region is unmapped */
         return false;
     }
@@ -135,82 +197,6 @@ bool peekdata(pid_t pid, void *addr, value_t * result)
 
     /* success */
     return true;
-}
-
-bool snapshot(list_t * matches, const list_t * regions, pid_t target)
-{
-    unsigned regnum = 0;
-    element_t *n = regions->head;
-    region_t *r;
-
-    /* stop and attach to the target */
-    if (attach(target) == false)
-        return false;
-
-    /* make sure we have some regions to search */
-    if (regions->size == 0) {
-        fprintf(stderr,
-                "warn: no regions defined, perhaps you deleted them all?\n");
-        fprintf(stderr,
-                "info: use the \"reset\" command to refresh regions.\n");
-        return detach(target);
-    }
-
-    /* first time, we have to check every memory region */
-    while (n) {
-        unsigned offset;
-
-        r = n->data;
-
-        /* print a progress meter so user knows we havnt crashed */
-        fprintf(stderr, "info: %02u/%02u saving %10p - %10p.", ++regnum,
-                regions->size, r->start, r->start + r->size);
-        fflush(stderr);
-
-        /* for every offset, check if we have a match */
-        for (offset = 0; offset < r->size; offset++) {
-            value_t check;
-            match_t *match;
-
-            /* if a region cant be read, skip it */
-            if (EXPECT
-                (peekdata(target, r->start + offset, &check) == false, false)) {
-                break;
-            }
-
-            /* save this new location */
-            if ((match = calloc(1, sizeof(match_t))) == NULL) {
-                fprintf(stderr, "error: memory allocation failed.\n");
-                (void) detach(target);
-                return false;
-            }
-
-            match->address = r->start + offset;
-            match->region = r;
-            match->lvalue = check;
-
-            if (EXPECT(l_append(matches, NULL, match) == -1, false)) {
-                fprintf(stderr, "error: unable to add match to list.\n");
-                (void) detach(target);
-                free(match);
-                return false;
-            }
-
-            /* print a simple progress meter. */
-            if (EXPECT(offset % ((r->size - (r->size % 10)) / 10) == 10, false)) {
-                fprintf(stderr, ".");
-                fflush(stderr);
-            }
-        }
-
-        n = n->next;
-        fprintf(stderr, "ok\n");
-    }
-
-    eprintf("info: we currently have %d matches.\n", matches->size);
-
-    /* okay, detach */
-    return detach(target);
 }
 
 bool checkmatches(list_t * matches, pid_t target, value_t value,
@@ -276,10 +262,43 @@ bool checkmatches(list_t * matches, pid_t target, value_t value,
     return detach(target);
 }
 
-bool candidates(list_t * matches, const list_t * regions, pid_t target,
-                value_t value)
+ssize_t readregion(void *buf, pid_t target, const region_t *region, size_t offset, size_t max)
+{
+    char mem[32];
+    int fd;
+    ssize_t len;
+    
+    /* print the path to mem file */
+    snprintf(mem, sizeof(mem), "/proc/%d/mem", target);
+    
+    /* attempt to open the file */
+    if ((fd = open(mem, O_RDONLY)) == -1) {
+        fprintf(stderr, "warn: unable to open %s.\n", mem);
+        return -1;
+    }
+    
+    /* check offset is sane */
+    if (offset > region->size) {
+        fprintf(stderr, "warn: unexpected offset while reading region.\n");
+        return -1;
+    }
+    
+    /* try to honour the request */
+    len = pread(fd, buf, MIN(region->size - offset, max), region->start + offset);
+    
+    /* clean up */
+    close(fd);
+    
+    return len;
+}
+    
+
+/* searchregion() performs an initial search of the process for values matching value */
+bool searchregions(list_t * matches, const list_t * regions, pid_t target,
+                value_t value, bool snapshot)
 {
     unsigned regnum = 0;
+    unsigned char *data = NULL;
     element_t *n = regions->head;
     region_t *r;
 
@@ -296,30 +315,60 @@ bool candidates(list_t * matches, const list_t * regions, pid_t target,
         return detach(target);
     }
 
-    /* first time, we have to check every memory region */
+    /* check every memory region */
     while (n) {
-        unsigned offset;
+        unsigned offset, nread = 0;
+        ssize_t len = 0;
 
+        /* load the next region */
         r = n->data;
 
+#ifdef HAVE_PROCMEM        
+        /* over allocate by 3 bytes, which are set to zero so the last bytes can be read as longs */
+        if ((data = calloc(r->size + sizeof(long) - 1, 1)) == NULL) {
+            fprintf(stderr, "error: sorry, there was a memory allocation error.\n");
+            return false;
+        }
+    
+        /* keep reading until completed */
+        while (nread < r->size) {
+            if ((len = readregion(data + nread, target, r, nread, r->size)) == -1) {
+                /* no, continue with whatever data was read */
+                break;
+            } else {
+                /* some data was read */
+                nread += len;
+            }
+        }
+#else        
+        nread = r->size;
+#endif
         /* print a progress meter so user knows we havnt crashed */
-        fprintf(stderr, "info: %02u/%02u searching %10p - %10p.", ++regnum,
+        fprintf(stderr, "info: %02u/%02u searching %#10x - %#10x.", ++regnum,
                 regions->size, r->start, r->start + r->size);
         fflush(stderr);
 
         /* for every offset, check if we have a match */
-        for (offset = 0; offset < r->size; offset++) {
+        for (offset = 0; offset < nread; offset++) {
             value_t check;
+           
+            /* initialise check */
+            memset(&check, 0x00, sizeof(check));
+            
+            valnowidth(&check);
 
-            /* if a region cant be read, skip it */
-            if (peekdata(target, r->start + offset, &check) == false) {
+#ifdef HAVE_PROCMEM           
+            check.value.tulong = *(unsigned long *)(&data[offset]);
+#else            
+            if (EXPECT(peekdata(target, r->start + offset, &check) == false, false)) {
                 break;
             }
-
+#endif
+            
             /* check if we have a match */
-            if (EXPECT(valuecmp(&value, MATCHEQUAL, &check, &check), false)) {
+            if (snapshot || EXPECT(valuecmp(&value, MATCHEQUAL, &check, &check), false)) {
                 match_t *match;
-
+               
                 /* save this new location */
                 if ((match = calloc(1, sizeof(match_t))) == NULL) {
                     fprintf(stderr, "error: memory allocation failed.\n");
@@ -348,6 +397,9 @@ bool candidates(list_t * matches, const list_t * regions, pid_t target,
 
         n = n->next;
         fprintf(stderr, "ok\n");
+#ifdef HAVE_PROCMEM        
+        free(data);
+#endif        
     }
 
     eprintf("info: we currently have %d matches.\n", matches->size);

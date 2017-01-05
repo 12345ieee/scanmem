@@ -1,9 +1,23 @@
 /*
-*
-* A simple linked list implementation.
-*
-* $Id: list.c,v 1.8 2007-04-08 23:09:18+01 taviso Exp $
-*
+ $Id: list.c,v 1.12 2007-06-05 01:45:35+01 taviso Exp $
+
+ A simple linked list implementation.
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include <stdlib.h>
@@ -69,6 +83,28 @@ int l_append(list_t * list, element_t * element, void *data)
     return 0;
 }
 
+/* concatenate list src with list dst */
+int l_concat(list_t *dst, list_t **src)
+{
+    void *data;
+    element_t *n;
+
+    n = (*src)->head;
+    
+    while (n) {
+        l_remove(*src, NULL, &data);
+        if (l_append(dst, NULL, data) == -1)
+            return -1;
+        
+        n = (*src)->head;
+    }
+    
+    l_destroy(*src);
+    
+    *src = NULL;
+    
+    return 0;
+}
 
 /* remove the element at element->next */
 void l_remove(list_t * list, element_t * element, void **data)
@@ -109,4 +145,18 @@ void l_remove(list_t * list, element_t * element, void **data)
     list->size--;
 
     return;
+}
+
+/* remove the nth element */
+void l_remove_nth(list_t * list, unsigned n, void **data)
+{
+    element_t *np = list->head;
+    
+    /* traverse to correct element */
+    while (n--) {
+        if ((np = np->next) == NULL)
+            /* return */ abort();
+    }
+    
+    l_remove(list, np, data);
 }

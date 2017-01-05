@@ -1,7 +1,21 @@
 /*
-*
-* $Id: menu.c,v 1.12 2007-04-08 23:09:18+01 taviso Exp $
-*
+ $Id: menu.c,v 1.15 2007-04-11 10:43:27+01 taviso Exp $
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #ifndef _GNU_SOURCE
@@ -121,6 +135,8 @@ static char *commandgenerator(const char *text, int state)
 
 int printversion(FILE * fp)
 {
-    return fprintf(fp, "scanmem %s - Tavis Ormandy <taviso@sdf.lonestar.org>\n",
-                   VERSIONSTRING);
+    return fprintf(fp, "scanmem version %s, Copyright (C) 2006-2007 Tavis Ormandy\n"
+                       "scanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\n"
+                       "This is free software, and you are welcome to redistribute it\n"
+                       "under certain conditions; type `show copying' for details.\n\n", PACKAGE_VERSION);
 }

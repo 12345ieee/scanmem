@@ -1,7 +1,21 @@
 /*
-*
-* $Id: main.c,v 1.18 2007-04-08 23:09:18+01 taviso Exp $
-*
+ $Id: main.c,v 1.24 2007-06-05 01:45:35+01 taviso Exp $
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+ 
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #ifndef _GNU_SOURCE
@@ -101,7 +115,6 @@ int main(int argc, char **argv)
     /* NULL shortdoc means dont display this command in `help` listing */
     registercommand("set", handler__set, vars->commands, SET_SHRTDOC,
                     SET_LONGDOC);
-    registercommand("cont", handler__cont, vars->commands, NULL, NULL); /* deprecated */
     registercommand("list", handler__list, vars->commands, LIST_SHRTDOC,
                     LIST_LONGDOC);
     registercommand("delete", handler__delete, vars->commands, DELETE_SHRTDOC,
@@ -114,6 +127,8 @@ int main(int argc, char **argv)
                     SNAPSHOT_SHRTDOC, SNAPSHOT_LONGDOC);
     registercommand("dregion", handler__dregion, vars->commands,
                     DREGION_SHRTDOC, DREGION_LONGDOC);
+    registercommand("dregions", handler__dregion, vars->commands,
+                    NULL, DREGION_LONGDOC);
     registercommand("lregions", handler__lregions, vars->commands,
                     LREGIONS_SHRTDOC, LREGIONS_LONGDOC);
     registercommand("version", handler__version, vars->commands,
@@ -130,26 +145,24 @@ int main(int argc, char **argv)
     registercommand("q", handler__exit, vars->commands, NULL, EXIT_LONGDOC);
     registercommand("help", handler__help, vars->commands, HELP_SHRTDOC,
                     HELP_LONGDOC);
-    registercommand("shell", handler__shell, vars->commands, SHELL_SHRTDOC,
-                    SHELL_LONGDOC);
+    registercommand("shell", handler__shell, vars->commands, SHELL_SHRTDOC, SHELL_LONGDOC);
     registercommand("watch", handler__watch, vars->commands, WATCH_SHRTDOC,
                     WATCH_LONGDOC);
-    registercommand("!", handler__shell, vars->commands, NULL, SHELL_LONGDOC);
+    registercommand("show", handler__show, vars->commands, SHOW_SHRTDOC, SHOW_LONGDOC);
 
     /* commands beginning with __ have special meaning */
-    registercommand("__eof", handler__eof, vars->commands, EOF_SHRTDOC,
-                    EOF_LONGDOC);
+    registercommand("__eof", handler__eof, vars->commands, NULL, NULL);
 
     /* special value NULL means no other matches */
     registercommand(NULL, handler__default, vars->commands, DEFAULT_SHRTDOC,
                     DEFAULT_LONGDOC);
 
+    printversion(stdout);
+
     /* this will initialise matches and regions */
     if (execcommand(vars, "reset") == false) {
         vars->target = 0;
     }
-
-    printversion(stdout);
 
     /* check if there is a target already specified */
     if (vars->target == 0) {
@@ -202,7 +215,6 @@ int main(int argc, char **argv)
 
 void sighandler(int n)
 {
-
     fprintf(stderr, "\nerror: fatal signal %d.\n", n);
 
     if (globals.target) {
@@ -226,6 +238,6 @@ void printhelp(void)
             "\n"
             "scanmem is an interactive debugging utility, enter `help` at the prompt\n"
             "for further assistance.\n"
-            "\n" "Report bugs to <taviso@sdf.lonestar.org>.\n");
+            "\n" "Report bugs to <%s>.\n", PACKAGE_BUGREPORT);
     return;
 }

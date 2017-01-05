@@ -1,0 +1,83 @@
+WARNING: No tool specified
+Test Run By taviso on Wed Apr 11 15:35:06 2007
+Native configuration is i686-pc-linux-gnu
+
+		===  tests ===
+
+trap: setting up signal 15 ("SIGTERM")
+trap: setting up signal 2 ("SIGINT")
+trap: setting up signal 3 ("SIGQUIT")
+trap: setting up signal 11 ("SIGSEGV")
+Schedule of variations:
+    unix
+
+Running target unix
+Using /usr/share/dejagnu/baseboards/unix.exp as board description file for target.
+Using /usr/share/dejagnu/config/unix.exp as generic interface file for target.
+Using ./config/unix.exp as tool-and-target-specific interface file.
+starting scanmem...
+spawn valgrind --error-exitcode=2 --quiet ../scanmem
+parent: waiting for sync byte
+parent: telling child to go ahead
+parent: now unsynchronized from child
+spawn: returns {20297}
+
+expect: does "" (spawn_id exp7) match regular expression "[0-9]{1,}> $"? no
+scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy
+scanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.
+This is free software, and you are welcome to redistribute it
+under certain conditions; type `show copying' for details.
+
+
+expect: does "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\n" (spawn_id exp7) match regular expression "[0-9]{1,}> $"? no
+Enter the pid of the process to search using the "pid" command.
+
+expect: does "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\nEnter the pid of the process to search using the "pid" command.\r\n" (spawn_id exp7) match regular expression "[0-9]{1,}> $"? no
+Enter "help" for other commands.
+
+expect: does "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\nEnter the pid of the process to search using the "pid" command.\r\nEnter "help" for other commands.\r\n" (spawn_id exp7) match regular expression "[0-9]{1,}> $"? no
+0> 
+expect: does "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\nEnter the pid of the process to search using the "pid" command.\r\nEnter "help" for other commands.\r\n0> " (spawn_id exp7) match regular expression "[0-9]{1,}> $"? yes
+expect: set expect_out(0,string) "0> "
+expect: set expect_out(spawn_id) "exp7"
+expect: set expect_out(buffer) "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\nEnter the pid of the process to search using the "pid" command.\r\nEnter "help" for other commands.\r\n0> "
+Running ./scanmem/version.exp ...
+send: sending "version\n" to { exp7 }
+
+expect: does "" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+v
+expect: does "v" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+e
+expect: does "ve" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+r
+expect: does "ver" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+s
+expect: does "vers" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+i
+expect: does "versi" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+o
+expect: does "versio" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+n
+expect: does "version" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+
+
+expect: does "version\r\n" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy
+scanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.
+This is free software, and you are welcome to redistribute it
+under certain conditions; type `show copying' for details.
+
+
+expect: does "version\r\nscanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\n" (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? no
+0> 
+expect: does "version\r\nscanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\n0> " (spawn_id exp7) match regular expression "scanmem version.*[0-9]{1,}> $"? yes
+expect: set expect_out(0,string) "scanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\n0> "
+expect: set expect_out(spawn_id) "exp7"
+expect: set expect_out(buffer) "version\r\nscanmem version 0.07, Copyright (C) 2006-2007 Tavis Ormandy\r\nscanmem comes with ABSOLUTELY NO WARRANTY; for details type `show warranty'.\r\nThis is free software, and you are welcome to redistribute it\r\nunder certain conditions; type `show copying' for details.\r\n\r\n0> "
+PASS: version
+testcase ./scanmem/version.exp completed in 0 seconds
+
+		===  Summary ===
+
+# of expected passes		1
+runtest completed at Wed Apr 11 15:35:07 2007

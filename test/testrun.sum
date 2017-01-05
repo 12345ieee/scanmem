@@ -1,0 +1,35 @@
+Test Run By taviso on Tue Jun  5 00:53:47 2007
+Native configuration is i686-pc-linux-gnu
+
+		===  tests ===
+
+Schedule of variations:
+    unix
+
+Running target unix
+Running ./scanmem/dregion.exp ...
+PASS: delete regions (no argument)
+PASS: delete regions (no target)
+PASS: delete regions (start test process)
+PASS: delete regions (attach to process)
+PASS: delete regions (find test region)
+PASS: delete regions (delete specific region)
+PASS: delete regions (check its gone)
+PASS: delete regions (no match)
+PASS: delete regions (inverted match)
+PASS: delete regions (delete all)
+PASS: delete regions (regions restored)
+PASS: delete regions (unexpected arguments)
+PASS: delete regions (list)
+PASS: delete regions (terminate test process)
+Running ./scanmem/iterchar.exp ...
+PASS: character at various offsets (start test process)
+PASS: character at various offsets (attach to process)
+PASS: character at various offsets (find test region)
+PASS: character at various offsets (delete irrelevant regions)
+PASS: character at various offsets (match everything)
+PASS: character at various offsets (test 64 variations)
+PASS: character at various offsets (terminate test process)
+Running ./scanmem/lregions.exp ...
+PASS: list regions (no target)
+ERROR: list regions (attach to process failed)

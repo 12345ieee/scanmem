@@ -1,7 +1,5 @@
 /*
-*
-* $Id: handlers.h,v 1.7 2007-04-08 23:21:47+01 taviso Exp $
-*
+  $Id: handlers.h,v 1.13 2007-06-05 01:45:35+01 taviso Exp $
 */
 
 #ifndef _INC_HANDLERS
@@ -42,8 +40,6 @@
 
 bool handler__set(globals_t * vars, char **argv, unsigned argc);
 
-bool handler__cont(globals_t * vars, char **argv, unsigned argc);
-
 #define LIST_SHRTDOC "list all currently known matches"
 #define LIST_LONGDOC "usage: list\n" \
                "Print all the currently known matches, along with details about the\n" \
@@ -52,14 +48,14 @@ bool handler__cont(globals_t * vars, char **argv, unsigned argc);
                "such as `set`, `delete`, etc.\n" \
                "The flags displayed indicate what is currently known about the variable\n" \
                "at that location, a capital letter indicates the property is set, lowercase\n" \
-               "indicates the property is not set.\n" \
-               "C,c\tThe value could be a char.\n" \
-               "S,s\tThe value could be a short.\n" \
-               "I,i\tThe value could be an int.\n" \
-               "L,l\tThe value could be a long.\n" \
-               "F,f\tThe value could be a float.\n" \
-               "N,n\tThe value is known to be signed.\n" \
-               "Z,z\tThis flag is not currently used.\n"
+               "indicates the property is not set.\n\n" \
+               "\tC,c\tThe value could be a char.\n" \
+               "\tS,s\tThe value could be a short.\n" \
+               "\tI,i\tThe value could be an int.\n" \
+               "\tL,l\tThe value could be a long.\n" \
+               "\tF,f\tThe value could be a float.\n" \
+               "\tN,n\tThe value is known to be signed.\n" \
+               "\tZ,z\tThis flag is not currently used.\n"
 
 bool handler__list(globals_t * vars, char **argv, unsigned argc);
 
@@ -103,11 +99,10 @@ bool handler__pid(globals_t * vars, char **argv, unsigned argc);
 bool handler__snapshot(globals_t * vars, char **argv, unsigned argc);
 
 #define DREGION_SHRTDOC "delete a known region by region-id"
-#define DREGION_LONGDOC "usage: dregion region-id\n" \
+#define DREGION_LONGDOC "usage: dregion [!]region-id[,region-id[,...]]\n" \
                 "Remove the region `region-id` from the regions list, along with any matches\n" \
                 "affected from the match list. The `region-id` can be found using the `lregions`\n" \
-                "command.\n\n" \
-                "NOTE: region-ids may be recalculated if regions are removed or added."
+                "command. A leading `!` indicates the list should be inverted.\n" 
 
 bool handler__dregion(globals_t * vars, char **argv, unsigned argc);
 
@@ -166,8 +161,6 @@ bool handler__help(globals_t * vars, char **argv, unsigned argc);
 
 bool handler__default(globals_t * vars, char **argv, unsigned argc);
 
-#define EOF_SHRTDOC NULL
-#define EOF_LONGDOC NULL
 bool handler__eof(globals_t * vars, char **argv, unsigned argc);
 
 #define SHELL_SHRTDOC "execute a shell command without leaving scanmem"
@@ -190,4 +183,12 @@ bool handler__shell(globals_t * vars, char **argv, unsigned argc);
                 "\twatch 12 - watch match 12 for any changes.\n"
 
 bool handler__watch(globals_t * vars, char **argv, unsigned argc);
+
+/*XXX: improve this */
+#define SHOW_SHRTDOC "display information about scanmem."
+#define SHOW_LONGDOC "usage: show [n]\n" \
+                "Display information relating to `n`.\n"
+
+bool handler__show(globals_t * vars, char **argv, unsigned argc);
+
 #endif

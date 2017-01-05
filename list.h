@@ -1,8 +1,8 @@
 /*
-*
-* $Id: list.h,v 1.6 2007-04-08 17:44:05+01 taviso Exp $
-* A very simple linked list implementation.
-*
+
+ $Id: list.h,v 1.9 2007-06-05 01:45:35+01 taviso Exp $
+ A very simple linked list implementation.
+
 */
 
 #ifndef _LIST_INC
@@ -30,5 +30,11 @@ int l_append(list_t * list, element_t * element, void *data);
 
 /* remove the element at element->next */
 void l_remove(list_t * list, element_t * element, void **data);
+
+/* remove the nth element from head */
+void l_remove_nth(list_t * list, unsigned n, void **data);
+
+/* remove all elements from *src, and append to dst */
+int l_concat(list_t *dst, list_t **src);
 
 #endif

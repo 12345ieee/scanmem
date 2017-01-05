@@ -1,7 +1,21 @@
 /*
-*
-* $Id: handlers.c,v 1.6 2007-04-08 23:09:17+01 taviso Exp $
-*
+ $Id: handlers.c,v 1.12 2007-06-05 01:45:34+01 taviso Exp $
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #ifndef _GNU_SOURCE
@@ -144,14 +158,13 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
         }                       /* if (strchr('/')) */
     }                           /* for(block...) */
 
-    /* --- setup a longjmp to handle interrupt if in continuous mode --- */
-    if (cont) {
-        if (INTERRUPTABLE()) {
-            /* control returns here when interrupted */
-            (void) detach(vars->target);
-            ENDINTERRUPTABLE();
-            return true;
-        }
+    /* --- setup a longjmp to handle interrupt --- */
+    if (INTERRUPTABLE()) {
+        
+        /* control returns here when interrupted */
+        detach(vars->target);
+        ENDINTERRUPTABLE();
+        return true;
     }
 
     /* --- execute the parsed setting structs --- */
@@ -186,8 +199,10 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
             if (*end != '\0') {
                 fprintf(stderr, "error: could not parse value `%s`\n",
                         settings[block].value);
-                ENDINTERRUPTABLE();
-                return false;
+                goto fail;
+            } else if (*settings[block].value == '\0') {
+                fprintf(stderr, "error: you didnt specify a value.\n");
+                goto fail;
             }
 
             /* check if specific match(s) were specified */
@@ -212,8 +227,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                     if (*id == '\0' || *end != '\0') {
                         fprintf(stderr,
                                 "error: could not parse match id `%s`\n", id);
-                        ENDINTERRUPTABLE();
-                        return false;
+                        goto fail;
                     }
 
                     /* check this is a valid match-id */
@@ -238,18 +252,16 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                         /* set the value specified */
                         if (setaddr(vars->target, match->address, &v) == false) {
                             fprintf(stderr, "error: failed to set a value.\n");
-                            ENDINTERRUPTABLE();
-                            return false;
+                            goto fail;
                         }
 
                     } else {
                         /* match-id > than number of matches */
                         fprintf(stderr,
                                 "error: found an invalid match-id `%s`\n", id);
-                        ENDINTERRUPTABLE();
-                        return false;
-                    }           /* if (num < matches->size) else ... */
-                }               /* while(strtok) */
+                        goto fail;
+                    }
+                }
             } else {
 
                 /* user wants to set all matches */
@@ -265,8 +277,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
 
                     if (setaddr(vars->target, match->address, &val) == false) {
                         fprintf(stderr, "error: failed to set a value.\n");
-                        ENDINTERRUPTABLE();
-                        return false;
+                        goto fail;
                     }
 
                     np = np->next;
@@ -275,7 +286,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
         }                       /* for(block) */
 
         if (cont) {
-            (void) sleep(1);
+            sleep(1);
         } else {
             break;
         }
@@ -286,21 +297,12 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
     ENDINTERRUPTABLE();
     return true;
 
-}
-
-/*XXX: remove handler__cont() in next version */
-bool handler__cont(globals_t * vars, char **argv, unsigned argc)
-{
-    USEPARAMS();
-
-    fprintf(stderr,
-            "warn: the `cont` command has been deprecated, use `set` instead.\n");
-    fprintf(stdout,
-            "info: type `help set` to see the new syntax and examples.\n");
+fail:
+    ENDINTERRUPTABLE();
     return false;
+    
 }
 
-/*XXX: add flags legend to list longdoc */
 /* XXX: add yesno command to check if matches > 099999 */
 /* example: [012] 0xffffff, csLfznu, 120, /lib/libc.so */
 
@@ -321,9 +323,8 @@ bool handler__list(globals_t * vars, char **argv, unsigned argc)
             strncpy(v, "unknown", sizeof(v));
         }
 
-        fprintf(stderr, "[%2u] %10p, %s, %s\n", i++, match->address, v,
-                match->region->pathname ? match->region->
-                pathname : "unassociated, typically .bss");
+        fprintf(stdout, "[%2u] %10p, %s, %s\n", i++, match->address, v,
+                match->region->filename[0] ? match->region->filename : "unassociated, typically .bss");
         np = np->next;
     }
 
@@ -335,8 +336,7 @@ bool handler__list(globals_t * vars, char **argv, unsigned argc)
 */
 bool handler__delete(globals_t * vars, char **argv, unsigned argc)
 {
-    unsigned i, id;
-    element_t *np = vars->matches->head;
+    unsigned id;
     char *end = NULL;
 
     if (argc != 2) {
@@ -358,14 +358,11 @@ bool handler__delete(globals_t * vars, char **argv, unsigned argc)
     /* check this is a valid match-id */
     if (id >= vars->matches->size) {
         fprintf(stderr, "warn: you specified a non-existant match `%u`.\n", id);
-        fprintf(stderr,
-                "info: use \"list\" to list matches, or \"help\" for other commands.\n");
+        fprintf(stderr, "info: use \"list\" to list matches, or \"help\" for other commands.\n");
         return false;
     }
 
-    /*lint -e722 skip to the correct node, semi-colon intended */
-    for (i = 0; np && i < id - 1; i++, np = np->next);
-    l_remove(vars->matches, np, NULL);
+    l_remove_nth(vars->matches, id - 1, NULL);
 
     return true;
 }
@@ -433,6 +430,10 @@ bool handler__pid(globals_t * vars, char **argv, unsigned argc)
 bool handler__snapshot(globals_t * vars, char **argv, unsigned argc)
 {
     USEPARAMS();
+    value_t v;
+    
+    /* unused */
+    v.value.tslong = -1;
 
     /* check that a pid has been specified */
     if (vars->target == 0) {
@@ -449,7 +450,7 @@ bool handler__snapshot(globals_t * vars, char **argv, unsigned argc)
         return false;
     }
 
-    if (snapshot(vars->matches, vars->regions, vars->target) != true) {
+    if (searchregions(vars->matches, vars->regions, vars->target, v, true) != true) {
         fprintf(stderr, "error: failed to save target address space.\n");
         return false;
     }
@@ -457,40 +458,125 @@ bool handler__snapshot(globals_t * vars, char **argv, unsigned argc)
     return true;
 }
 
-/* XXXX: REALL Y NOT READY */
+/* dregion [!][x][,x,...] */
 bool handler__dregion(globals_t * vars, char **argv, unsigned argc)
 {
-    unsigned i, id;
-    char *end = NULL;
-    element_t *np = vars->regions->head, *t = vars->matches->head, *p = NULL;
+    unsigned id;
+    bool invert = false;
+    char *end = NULL, *idstr = NULL, *block = NULL;
+    element_t *np, *t, *p, *pp;
+    list_t *keep = NULL;
+    region_t *save;
 
-    USEPARAMS();
-
+    /* need an argument */
     if (argc < 2) {
-        fprintf(stderr,
-                "error: expected at least one argument, see `help dregion`.\n");
+        fprintf(stderr, "error: expected an argument, see `help dregion`.\n");
         return false;
     }
 
-    id = strtoul(argv[1], &end, 0x00);
-
-    if (*end != '\0') {
-        fprintf(stderr, "error: could not parse argument %s.\n", argv[1]);
-        return false;
-    }
-
-    /* check that there is a process known */
+     /* check that there is a process known */
     if (vars->target == 0) {
         fprintf(stderr, "error: no target specified, see `help pid`\n");
         return false;
     }
+    
+    /* check for an inverted match */
+    if (*argv[1] == '!') {
+        invert = true;
+        /* create a copy of the argument for strtok(), +1 to skip '!' */
+        block = strdupa(argv[1] + 1);
+        
+        /* check for lone '!' */
+        if (*block == '\0') {
+            fprintf(stderr, "error: inverting an empty set, maybe try `reset` instead?\n");
+            return false;
+        }
+        
+        /* create a list to keep the specified regions */
+        if ((keep = l_init()) == NULL) {
+            fprintf(stderr, "error: memory allocation error.\n");
+            return false;
+        }
+        
+    } else {
+        invert = false;
+        block = strdupa(argv[1]);
+    }
 
-    /* delete the nth region */
-    if (id < vars->regions->size) {
+    /* loop for every number specified, eg "1,2,3,4,5" */
+    while ((idstr = strtok(block, ",")) != NULL) {
+        region_t *r = NULL;
+        
+        /* set block to NULL for strtok() */
+        block = NULL;
+        
+        /* attempt to parse as a regionid */
+        id = strtoul(idstr, &end, 0x00);
 
-        /*lint !e722 traverse list to element, semi-colon intended */
-        for (i = 0; np && i < id - 1; i++, np = np->next);
+        /* check that worked, "1,abc,4,,5,6foo" */
+        if (*end != '\0' || *idstr == '\0') {
+            fprintf(stderr, "error: could not parse argument %s.\n", idstr);
+            if (invert) {
+                if (l_concat(vars->regions, &keep) == -1) {
+                    fprintf(stderr, "error: there was a problem restoring saved regions.\n");
+                    l_destroy(vars->regions);
+                    l_destroy(keep);
+                    return false;
+                }
+            }
+            assert(keep == NULL);
+            return false;
+        }
+        
+        /* initialise list pointers */
+        np = vars->regions->head;
+        t = vars->matches->head;
+        p = pp = NULL;
+        
+        /* find the correct region node */
+        while (np) {
+            r = np->data;
+            
+            /* compare the node id to the id the user specified */
+            if (r->id == id)
+                break;
+            
+            pp = np; /* keep track of prev for l_remove() */
+            np = np->next;
+        }
 
+        /* check if a match was found */
+        if (np == NULL) {
+            fprintf(stderr, "error: no region matching %u, or already moved.\n", id);
+            if (invert) {
+                if (l_concat(vars->regions, &keep) == -1) {
+                    fprintf(stderr, "error: there was a problem restoring saved regions.\n");
+                    l_destroy(vars->regions);
+                    l_destroy(keep);
+                    return false;
+                }
+            }
+            if (keep)
+                l_destroy(keep);
+            return false;
+        }
+        
+        np = pp;
+        
+        /* save this region if the match is inverted */
+        if (invert) {
+            
+            assert(keep != NULL);
+            
+            l_remove(vars->regions, np, (void *) &save);
+            if (l_append(keep, keep->tail, save) == -1) {
+                fprintf(stderr, "error: sorry, there was an internal memory error.\n");
+                free(save);
+                return false;
+            }
+            continue;
+        }
+        
         /* check for any affected matches before removing it */
         while (t) {
             match_t *match = t->data;
@@ -519,13 +605,40 @@ bool handler__dregion(globals_t * vars, char **argv, unsigned argc)
         }
 
         l_remove(vars->regions, np, NULL);
-    } else {
-        fprintf(stderr,
-                "warn: you attempted to delete a non-existant region `%u`.\n",
-                id);
-        fprintf(stderr,
-                "info: use \"lregions\" to list regions, or \"help\" for other commands.\n");
-        return false;
+    }
+
+    if (invert) {
+        element_t *nrp = vars->regions->head, *pmp, *nmp;
+
+        while(nrp) {
+            region_t *region = nrp->data;
+            
+            nmp = vars->matches->head;
+            pmp = NULL;
+            
+            while (nmp) {
+                match_t *match = nmp->data;
+
+             	 /* check if this one should go */
+                if (match->region->id == region->id) {
+					     /* remove this match */
+                    l_remove(vars->matches, pmp, NULL); 
+                   
+                    nmp = pmp ? pmp->next : vars->matches->head;
+                } else {
+                    pmp = nmp;
+                    nmp = nmp->next;
+                }
+            }
+            
+            nrp = nrp->next;
+        }
+        
+        /* okay, done with the regions list */
+        l_destroy(vars->regions);
+        
+        /* and switch to the keep list */
+        vars->regions = keep;
     }
 
     return true;
@@ -533,27 +646,29 @@ bool handler__dregion(globals_t * vars, char **argv, unsigned argc)
 
 bool handler__lregions(globals_t * vars, char **argv, unsigned argc)
 {
-    unsigned i = 0;
     element_t *np = vars->regions->head;
 
     USEPARAMS();
 
     if (vars->target == 0) {
-        fprintf(stderr,
-                "error: no target has been specified, see `help pid`.\n");
+        fprintf(stderr, "error: no target has been specified, see `help pid`.\n");
         return false;
     }
 
+    if (vars->regions->size == 0) {
+        fprintf(stdout, "info: no regions are known.\n");
+    }
+    
     /* print a list of regions that are searched */
     while (np) {
         region_t *region = np->data;
 
-        fprintf(stderr, "[%2u] %10p, %7u bytes, %c%c%c, %s\n",
-                i++, region->start, region->size,
-                region->perms & MAP_RD ? 'r' : '-',
-                region->perms & MAP_WR ? 'w' : '-',
-                region->perms & MAP_EX ? 'x' : '-',
-                region->pathname ? region->pathname : "unassociated");
+        fprintf(stderr, "[%2u] %#10x, %7u bytes, %c%c%c, %s\n",
+                region->id, region->start, region->size,
+                region->flags.read ? 'r' : '-',
+                region->flags.write ? 'w' : '-',
+                region->flags.exec ? 'x' : '-',
+                region->filename[0] ? region->filename : "unassociated");
         np = np->next;
     }
 
@@ -645,7 +760,7 @@ bool handler__default(globals_t * vars, char **argv, unsigned argc)
         }
     } else {
         /* initial search */
-        if (candidates(vars->matches, vars->regions, vars->target, val) != true) {
+        if (searchregions(vars->matches, vars->regions, vars->target, val, false) != true) {
             fprintf(stderr, "error: failed to search target address space.\n");
             return false;
         }
@@ -879,4 +994,29 @@ bool handler__watch(globals_t * vars, char **argv, unsigned argc)
 
         (void) sleep(1);
     }
+}
+
+#include "licence.h"
+
+bool handler__show(globals_t * vars, char **argv, unsigned argc)
+{
+    USEPARAMS();
+    
+    if (argv[1] == NULL) {
+        fprintf(stderr, "error: expecting an argument.\n");
+        return false;
+    }
+    
+    if (strcmp(argv[1], "copying") == 0)
+        fprintf(stdout, SM_COPYING);
+    else if (strcmp(argv[1], "warranty") == 0)
+        fprintf(stdout, SM_WARRANTY);
+    else if (strcmp(argv[1], "version") == 0)
+        printversion(stdout);
+    else {
+        fprintf(stderr, "error: unrecognised show command `%s`\n", argv[1]);
+        return false;
+    }
+    
+    return true;
 }

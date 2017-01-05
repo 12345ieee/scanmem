@@ -1,3 +1,12 @@
+2007-06-07 Tavis Ormandy <taviso@sdf.lonestar.org>
+    * make license clearer, added gpl notice to all source files, and added a show command.
+        - eg, show copying, show warranty, etc.
+    * handle unspecified value in set properly, eg set /4
+    * autotooled the build process.
+    * fixed bug where unaligned variables might be missed at end of region.
+    * begin testsuite using dejagnu, to help prevent any regressions in future.
+    * use /proc/pid/mem if available.
+
 2007-04-08 Tavis Ormandy <taviso@sdf.lonestar.org>
     * corrected lots of lint errors.
     * include copy of GPL in COPYING file.

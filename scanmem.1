@@ -1,4 +1,4 @@
-.TH scanmem 1 "April 08, 2007" "version 0.06"
+.TH scanmem 1 "June 05, 2007" "version 0.07"
 .SH NAME
 scanmem - locate and modify a variable in an executing process.
 
@@ -104,7 +104,7 @@ can be specified, separated with commas and terminated with an
 .I =
 sign. To set a value continually,  suffix the command with
 .I /
-followed by the number of seconds wo wait between sets. You can interrupt the set command
+followed by the number of seconds to wait between sets. You can interrupt the set command
 with ^C to return to the
 .B scanmem
 prompt. This can be used to sustain the value of a variable which decreases overtime, for
@@ -219,13 +219,17 @@ command. The size and path (if applicable) is also printed. This can be used to 
 located in shared libraries that are unlikely to be relevant to the variable required.
 
 .B dregion
-.I [region-id]
+.I [!][region-id][,region-id][,...]
 
 Delete the region 
 .I region-id
-, which can be found in the output of the 
+, along with any matches from the match list. The
+.I region-id
+can be found in the output of the 
 .B lregions
-command.
+command. A leading
+.I !
+indicates the list should be inverted.
 
 .B reset
 

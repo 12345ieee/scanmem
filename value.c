@@ -1,9 +1,24 @@
 /*
-*
-* $Id: value.c,v 1.3 2007-04-08 23:09:18+01 taviso Exp $
-*
-* simple routines for working with the value_t data structure.
-*
+ $Id: value.c,v 1.5 2007-04-11 10:43:27+01 taviso Exp $
+
+ simple routines for working with the value_t data structure.
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 */
 
 #include <stdio.h>
@@ -299,5 +314,3 @@ bool valuecmp(const value_t * v1, matchtype_t operator, const value_t * v2,
 
     return ret;
 }
-
-// long unusedvalorlong(*val, long) val |= long, for poking.

@@ -1,7 +1,21 @@
 /*
-*
-* $Id: maps.c,v 1.11 2007-04-08 23:09:18+01 taviso Exp $
-*
+ $Id: maps.c,v 1.16 2007-06-05 01:45:35+01 taviso Exp $
+
+ Copyright (C) 2006,2007 Tavis Ormandy <taviso@sdf.lonestar.org>
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #ifndef _GNU_SOURCE
@@ -16,12 +30,14 @@
 #include <alloca.h>
 #include <stdbool.h>
 
+#include "list.h"
+#include "maps.h"
 #include "scanmem.h"
 
 bool readmaps(pid_t target, list_t * regions)
 {
     FILE *maps;
-    char name[22], *line = NULL;
+    char name[32], *line = NULL;
     size_t len = 0;
 
     /* check if target is valid */
@@ -41,78 +57,68 @@ bool readmaps(pid_t target, list_t * regions)
 
     /* read every line of the maps file */
     while (getline(&line, &len, maps) != -1) {
-        char *start, *end;
+        unsigned start, end;
         region_t *map = NULL;
-        char read, write, exec, cow, *pathname;
+        char read, write, exec, cow, *filename;
 
-        if ((pathname = calloc(len, 1)) == NULL) {
-            fprintf(stderr,
-                    "error: failed to allocate %u bytes for pathname.\n", len);
+        /* slight overallocation */
+        if ((filename = alloca(len)) == NULL) {
+            fprintf(stderr, "error: failed to allocate %u bytes for filename.\n", len);
             goto error;
         }
+        
+        /* initialise to zero */
+        memset(filename, '\0', len);
 
         /* parse each line */
-        if (sscanf(line, "%p-%p %c%c%c%c %*x %*s %*u %s", &start, &end, &read,
-                   &write, &exec, &cow, pathname) >= 6) {
+        if (sscanf(line, "%x-%x %c%c%c%c %*x %*s %*u %s", &start, &end, &read,
+                &write, &exec, &cow, filename) >= 6) {
 
             /* must have permissions to read and write, and be non-zero size */
             if (write == 'w' && read == 'r' && (end - start) > 0) {
 
                 /* allocate a new region structure */
-                if ((map = calloc(1, sizeof(region_t))) == NULL) {
-                    fprintf(stderr,
-                            "error: failed to allocate memory for region.\n");
-                    free(pathname);
+                if ((map = calloc(1, sizeof(region_t) + strlen(filename))) == NULL) {
+                    fprintf(stderr, "error: failed to allocate memory for region.\n");
                     goto error;
                 }
 
                 /* initialise this region */
-                map->perms |= (MAP_RD | MAP_WR);
+                map->flags.read = true;
+                map->flags.write = true;
                 map->start = start;
                 map->size = (unsigned) (end - start);
 
                 /* setup other permissions */
-                if (exec == 'x')
-                    map->perms |= MAP_EX;
-                if (cow == 's')
-                    map->perms |= MAP_SH;
-                if (cow == 'p')
-                    map->perms |= MAP_PR;
+                map->flags.exec = (exec == 'x');
+                map->flags.shared = (cow == 's');
+                map->flags.private = (cow == 'p');
 
                 /* save pathname */
-                if (*pathname) {
-                    /* the pathname is concatenated with the structure so that l_destroy() works */
-                    if ((map =
-                         realloc(map,
-                                 sizeof(*map) + strlen(pathname) + 1)) ==
-                        NULL) {
+                if (strlen(filename) != 0) {
+                    /* the pathname is concatenated with the structure */
+                    if ((map = realloc(map, sizeof(*map) + strlen(filename))) == NULL) {
                         fprintf(stderr, "error: failed to allocate memory.\n");
                         goto error;
                     }
 
-                    map->pathname = (char *) map + sizeof(*map);
-                    strcpy(map->pathname, pathname);
-                } else {
-                    map->pathname = NULL;
+                    strcpy(map->filename, filename);
                 }
 
-                /* pathname saved into list now */
-                free(pathname);
-
+                /* add a unique identifier */
+                map->id = regions->size;
+                
                 /* okay, add this guy to our list */
-                if (l_append(regions, NULL, map) == -1) {
-                    fprintf(stderr,
-                            "error: sorry, failed to add region to list.\n");
+                if (l_append(regions, regions->tail, map) == -1) {
+                    fprintf(stderr, "error: failed to save region.\n");
                     goto error;
                 }
-            } else {
-                free(pathname);
             }
-        } else {
-            free(pathname);
         }
     }
 
+    eprintf("info: %d suitable regions found.\n", regions->size);
+    
     /* release memory allocated */
     free(line);
     fclose(maps);
@@ -125,3 +131,9 @@ bool readmaps(pid_t target, list_t * regions)
 
     return false;
 }
+
+int compare_region_id(const region_t *a, const region_t *b)
+{    
+    return (int) (a->id - b->id);
+}
+
