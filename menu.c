@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.3 $
+* $Revision: 1.5 $
 */
 
 #ifndef _GNU_SOURCE
@@ -13,34 +13,42 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #include "list.h"
 #include "scanmem.h"
 
 selection_t getcommand(unsigned info, unsigned *operand)
 {
-    static selection_t last = -1;
+    static selection_t last = COMMAND_ERROR;
     char *command = NULL, *end = NULL;
 
     while (true) {
         unsigned i;
         size_t len;
+        char prompt[64];
         
-        fprintf(stderr, "%u> ", info);
-        fflush(stderr);
-    
-        if (getline(&command, &len, stdin) == -1) {
+        snprintf(prompt, sizeof(prompt), "%u> ", info);
+
+        if ((command = readline(prompt)) == NULL) {
             /* EOF */
             free(command);
             fprintf(stderr, "exit\n");
             return last = COMMAND_EXIT;
         }
         
+        len = strlen(command);
+        
         /* repeat last command */
         if (*command == '\n' || *command == '\0') {
             free(command);
             return last;
         }
-
+        
+        /* record this line to readline history */
+        add_history(command);
+        
         /* attempt to parse command as number */
         i = strtoul(command, &end, 0);
         
@@ -117,8 +125,6 @@ selection_t getcommand(unsigned info, unsigned *operand)
         free(command);
         return last;
     }
-    
-    return COMMAND_ERROR;
 }
 
 void printinthelp(void)

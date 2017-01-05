@@ -3,12 +3,11 @@
 * A simple linked list implementation.
 *
 * $Author: taviso $
-* $Revision: 1.2 $
+* $Revision: 1.3 $
 *
 */
 
 #include <stdlib.h>
-#include <string.h>
 
 #include "list.h"
 
@@ -68,7 +67,7 @@ int l_append(list_t *list, element_t *element, void *data)
         
 
 /* remove the element at element->next */
-int l_remove(list_t *list, element_t *element, void **data)
+void l_remove(list_t *list, element_t *element, void **data)
 {
     element_t *o;
     
@@ -103,6 +102,6 @@ int l_remove(list_t *list, element_t *element, void **data)
     
     list->size--;
     
-    return 0;
+    return;
 }
         

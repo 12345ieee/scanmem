@@ -6,3 +6,5 @@
 * differentiate between signed and unsigned integers, > and < probably dont work for these right now.
 * better command line parsing.
 * better online help, eg "help delete"
+* memory leak with dregion (free the pathname)
+* implement a completion function for readline.

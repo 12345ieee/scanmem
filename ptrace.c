@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.5 $
+* $Revision: 1.7 $
 */
 
 #include <sys/ptrace.h>
@@ -12,11 +12,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
 
+#ifdef __GNUC__
+# define EXPECT(x,y) __builtin_expect(x, y)
+#else
+# define EXPECT(x,y) x 
+#endif
+
 #include "scanmem.h"
+static int attach(pid_t target);
 
 int attach(pid_t target)
 {
@@ -44,7 +50,7 @@ int detach(pid_t target)
     return ptrace(PTRACE_DETACH, target, NULL, 0);
 }
 
-int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, unsigned width,
+int candidates(list_t *matches, const list_t *regions, pid_t target, unsigned value, unsigned width,
                matchtype_t type)
 {
     unsigned mask = ~0;
@@ -100,6 +106,7 @@ int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, u
             }
         }
     } else if (type == MATCHEXACT) {
+        unsigned regnum = 0;
         element_t *n = regions->head;
         region_t *r;
         
@@ -118,12 +125,13 @@ int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, u
 
             /* this first scan can be very slow on large programs, eg quake3 ;)  */
             /* print a progress meter so user knows we havnt crashed */
-            fprintf(stderr, "info: searching %#010x - %#010x.", r->start, r->start + r->size);
-            fflush(stderr);
+            fprintf(stderr, "info: %02u/%02u searching %#010x - %#010x.", ++regnum, regions->size,
+                r->start, r->start + r->size);
+            fflush(stderr); /*lint !e534 */
             
             /* for every word */
             for (offset = 0; offset < r->size; offset++) {
-                if ((ptrace(PTRACE_PEEKDATA, target, r->start + offset, NULL) & (mask >> width)) == value) {
+                if (EXPECT((ptrace(PTRACE_PEEKDATA, target, r->start + offset, NULL) & (mask >> width)) == value, false)) {
                     match_t *match;
                     
 						  /* save this new location */
@@ -137,7 +145,7 @@ int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, u
                     match->region = r;
                     match->lvalue = value;
                     
-                    if (l_append(matches, NULL, match) == -1) {
+                    if (EXPECT(l_append(matches, NULL, match) == -1, false)) {
                         fprintf(stderr, "error: unable to add match to list.\n");
                         (void) detach(target);
                         return -1;
@@ -145,9 +153,9 @@ int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, u
                 }
                 
                 /* print a simple progress meter. */
-                if (offset % ((r->size - (r->size % 10)) / 10) == 10) {
+                if (EXPECT(offset % ((r->size - (r->size % 10)) / 10) == 10, false)) {
                     fprintf(stderr, ".");
-                    fflush(stderr);
+                    fflush(stderr); /*lint !e534 */
                 }
             }
             n = n->next;

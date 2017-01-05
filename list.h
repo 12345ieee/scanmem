@@ -1,14 +1,12 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.2 $
+* $Revision: 1.3 $
 *
 */
 
 #ifndef _LIST_INC
 #define _LIST_INC
-
-#include <stdlib.h>
 
 typedef struct element {
     void *data;
@@ -17,8 +15,6 @@ typedef struct element {
 
 typedef struct {
     unsigned size;
-    unsigned (*match)(void *d1, void *d2);
-    unsigned (*destroy)(void *d);
     element_t *head;
     element_t *tail;
 } list_t;
@@ -33,6 +29,6 @@ void l_destroy(list_t *list);
 int l_append(list_t *list, element_t *element, void *data);
 
 /* remove the element at element->next */
-int l_remove(list_t *list, element_t *element, void **data);
+void l_remove(list_t *list, element_t *element, void **data);
 
 #endif

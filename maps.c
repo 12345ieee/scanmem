@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.4 $
+* $Revision: 1.5 $
 *
 */
 
@@ -11,17 +11,12 @@
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stddef.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <alloca.h>
 
 #include "scanmem.h"
-#include "list.h"
 
 int readmaps(pid_t target, list_t *regions)
 {
@@ -57,20 +52,20 @@ int readmaps(pid_t target, list_t *regions)
             
 				/* must have permissions to read and write */
             if (write == 'w' && read == 'r') {
-	
-	         	/* allocate a new region structure */
-               if ((map = calloc(1, sizeof(region_t))) == NULL) {
+
+	         	 /* allocate a new region structure */
+                if ((map = calloc(1, sizeof(region_t))) == NULL) {
                    fprintf(stderr, "error: failed to allocate memory for region.\n");
                    free(pathname);
                    goto error;
                 }
-            
+
+                /* initialise this region */
+                map->perms |= (MAP_RD | MAP_WR);    
                 map->start = start;
                 map->size = end - start;
 
-            	 /* setup permissions */
-                if (read == 'r') map->perms |= MAP_RD;
-                if (write == 'w') map->perms |= MAP_WR;
+            	 /* setup other permissions */
                 if (exec == 'x') map->perms |= MAP_EX;
                 if (cow == 's') map->perms |= MAP_SH;
                 if (cow == 'p') map->perms |= MAP_PR;

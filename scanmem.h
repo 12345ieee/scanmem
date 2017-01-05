@@ -1,17 +1,15 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.4 $
+* $Revision: 1.6 $
 *
 */
 
 #ifndef _SCANMEM_INC
 #define _SCANMEM_INC /* include guard */
 
-#include <stddef.h>
-#include <stdbool.h>
-#include <unistd.h>
-
+#include <stdint.h>
+#include <sys/types.h>
 #include "list.h"
 
 #define DEBUG
@@ -34,27 +32,28 @@
 
 typedef struct {
     intptr_t start;         /* start address */
-    size_t size;                /* size */
+    size_t size;            /* size */
     char *pathname;         /* first 1024 characters */
     unsigned char perms;    /* map permissions */
-} __attribute__((__packed__)) region_t;
+} region_t;
 
 typedef struct {
-    intptr_t address;       /* address of variable */
-    region_t *region;       /* region it belongs to */
-    unsigned lvalue;            /* last seen of variable */
-    unsigned short reg;    /* bitmask of register */
-} __attribute__((__packed__)) match_t;
+    intptr_t address;      /* address of variable */
+    region_t *region;      /* region it belongs to */
+    unsigned lvalue;       /* last seen of variable */
+#if 0
+    unsigned short reg;    /* TODO: bitmask of register */
+#endif    
+}match_t;
 
 int readmaps(pid_t target, list_t *regions);
 
-int attach(pid_t target);
 int detach(pid_t target);
 int setaddr(pid_t target, intptr_t addr, unsigned to);
 
 typedef enum { MATCHEXACT, MATCHINCREMENT, MATCHDECREMENT } matchtype_t;
 
-int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, unsigned width,
+int candidates(list_t *matches, const list_t *regions, pid_t target, unsigned value, unsigned width,
                matchtype_t type);
 
 typedef enum {
@@ -71,16 +70,13 @@ typedef enum {
    COMMAND_LIST,
    COMMAND_WIDTH,
    COMMAND_PID,
-   COMMAND_MEMORY,
    COMMAND_LISTREGIONS,
    COMMAND_DELREGIONS,
-   COMMAND_RESET,
+   COMMAND_RESET
 } selection_t;
 
 selection_t getcommand(unsigned value, unsigned *operand);
-    
-void sighandler(int n);
-void printhelp(void);
-void printversion(void);
+
 void printinthelp(void);
+void printversion(void);
 #endif

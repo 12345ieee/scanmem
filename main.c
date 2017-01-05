@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.7 $
+* $Revision: 1.9 $
 *
 */
 
@@ -10,21 +10,23 @@
 #endif
 
 #include <stdio.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <sys/types.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <getopt.h>
-#include <string.h>
 #include <signal.h>
 #include <limits.h>
 #include <assert.h>
 
-#include "scanmem.h"
-#include "list.h"
+#include <readline/readline.h>
 
-pid_t target; /* used on signal to detach from target */
+#include "scanmem.h"
+
+static void printhelp(void);
+static void sighandler(int n);
+
+static pid_t target; /* used on signal to detach from target */
 
 int main(int argc, char **argv)
 {
@@ -39,6 +41,9 @@ int main(int argc, char **argv)
         { NULL,          0, NULL,  0  },
     };
 
+    /* disable readline completion for now, this will work at some point */
+    rl_bind_key ('\t', rl_insert);
+    
     (void) max; /* plan to implement max matches at some point, to prevent memory exhaustion */
     
     /* process command line */
@@ -50,11 +55,9 @@ int main(int argc, char **argv)
             case 'v':
                 printversion();
                 return 0;
-                break;
             case 'h':
                 printhelp();
                 return 0;
-                break;
             case -1:
                 goto done;
             default:
@@ -74,12 +77,14 @@ done:
     }
 
     /* before attaching to target, install signal handler to detach on error */
-    signal(SIGHUP, sighandler);
-    signal(SIGINT, sighandler);
+    
+    /*lint -save -e534 */
+    signal(SIGHUP, sighandler); 
+    signal(SIGINT, sighandler); 
     signal(SIGQUIT, sighandler);
     signal(SIGSEGV, sighandler);
     signal(SIGABRT, sighandler);
-    signal(SIGILL, sighandler);
+    signal(SIGILL, sighandler); /*lint -restore */
 
     /* create a new linked list of regions */
     if ((regions = l_init()) == NULL) {
@@ -167,10 +172,10 @@ done:
                 
 					 /* set every value in match list to operand */
                 while (true) {
-                    element_t *n = matches->head;
+                    element_t *np = matches->head;
                       
-                    while (n) {
-                        match_t *match = n->data;
+                    while (np) {
+                        match_t *match = np->data;
                             
                         fprintf(stderr, "info: setting *%#010x to %u...\n", match->address, operand);
                             
@@ -180,11 +185,11 @@ done:
                             goto end;
                         }
                           
-                        n = n->next;
+                        np = np->next;
                     }
 
                     if (continuous) {
-                        sleep(continuous);
+                        sleep(continuous); /*lint !e534 */
                     } else {
                         break;
                     }
@@ -193,28 +198,28 @@ done:
                 break;
             case COMMAND_LIST: {
                     unsigned i = 0;
-                    element_t *n = matches->head;
+                    element_t *np = matches->head;
                     
                     /* list all known matches */
-                    while (n) {
-                        match_t *match = n->data;
+                    while (np) {
+                        match_t *match = np->data;
                         fprintf(stderr, "[%02u] %#010x {%10u} (%s)\n", i++, 
                             match->address, match->lvalue,
                             match->region->pathname ? match->region->pathname :
                                 "unassociated, typically .bss");
-                        n = n->next;
+                        np = np->next;
                     }
                 }
                 break;
             case COMMAND_DELETE: {
                     unsigned i;
-                    element_t *n = matches->head;
+                    element_t *np = matches->head;
                     
                     /* delete the nth match from the matches list */
                     if (operand < matches->size) {
-                        for (i = 0; n && i < operand - 1; i++, n = n->next)
+                        for (i = 0; np && i < operand - 1; i++, np = np->next)
                             ;
-                        l_remove(matches, n, NULL);
+                        l_remove(matches, np, NULL);
                     } else {
                         fprintf(stderr, "warn: you attempted to delete a non-existant match `%u`.\n", operand);
                         fprintf(stderr, "info: use \"list\" to list matches, or \"help\" for other commands.\n");
@@ -228,10 +233,9 @@ done:
             case COMMAND_EXIT:
                 /* exit now */
                 goto end;
-                break;
             case COMMAND_WIDTH:
                 /* change width of target */
-                if ((operand > CHAR_BIT * sizeof(unsigned) || operand % CHAR_BIT != 0) && operand != 0) {
+                if (operand > CHAR_BIT * sizeof(unsigned) || operand % CHAR_BIT != 0) {
                     fprintf(stderr, "info: %u is invalid, width must be multiple of %d and <= %d.\n",
                         operand, CHAR_BIT, sizeof(unsigned) * CHAR_BIT);
                 } else if (operand != 0) {
@@ -247,29 +251,30 @@ done:
                 break;
             case COMMAND_LISTREGIONS: {
                     unsigned i = 0;
-                    element_t *n = regions->head;
+                    element_t *np = regions->head;
                     
                     /* print a list of regions that are searched */
-                    while (n) {
-                        region_t *region = n->data;
+                    while (np) {
+                        region_t *region = np->data;
                         fprintf(stderr, "[%02u] %#010x, %u bytes, %c%c%c, %s\n", i++, 
-                            region->start, region->size, region->perms & MAP_RD ? 'r' : '-',
-                            region->perms & MAP_WR ? 'w' : '-', region->perms & MAP_EX ? 'x' : '-',
-                            region->pathname ? region->pathname :
-                                "unassociated");
-                        n = n->next;
+                            region->start, region->size, 
+                            region->perms & MAP_RD ? 'r' : '-',
+                            region->perms & MAP_WR ? 'w' : '-',
+                            region->perms & MAP_EX ? 'x' : '-',
+                            region->pathname ? region->pathname : "unassociated");
+                        np = np->next;
                     }
                 }
                 break;
             case COMMAND_DELREGIONS: {
                     unsigned i;
-                    element_t *n = regions->head, *t = matches->head, *p = NULL;
+                    element_t *np = regions->head, *t = matches->head, *p = NULL;
                     
                     /* delete the nth region */
                     if (operand < regions->size) {
                         
                         /* traverse list to element */
-                        for (i = 0; n && i < operand - 1; i++, n = n->next)
+                        for (i = 0; np && i < operand - 1; i++, np = np->next)
                             ; 
                         
                         /* check for any affected matches before removing it */
@@ -278,9 +283,9 @@ done:
                             region_t *s;
                             
                             /* determine the correct pointer we're supposed to be checking */
-                            if (n) {
-                                assert(n->next);
-                                s = n->next->data;
+                            if (np) {
+                                assert(np->next);
+                                s = np->next->data;
                             } else {
                                 /* head of list */
                                 s = regions->head->data;
@@ -298,7 +303,7 @@ done:
                                 t = t->next;
                             }
                         }
-                        l_remove(regions, n, NULL);
+                        l_remove(regions, np, NULL);
                     } else {
                         fprintf(stderr, "warn: you attempted to delete a non-existant region `%u`.\n", operand);
                         fprintf(stderr, "info: use \"lregions\" to list regions, or \"help\" for other commands.\n");

@@ -1,3 +1,10 @@
+2007-01-11 Tavis Ormandy <taviso@sdf.lonestar.org>
+    * cleaned up some lintian errors
+    * used __builtin_expect() to try to improve performance in some areas
+    * minor UI tweaks, give region counts during scan.
+    * start using readline(), should implement completion at some point.
+    * fixed memory leak.
+
 2006-11-16 Tavis Ormandy <taviso@sdf.lonestar.org>
     * Made buffer management more intelligent.
     * Add commands to list and delete regions (lregions, dregion).
