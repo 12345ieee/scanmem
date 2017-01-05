@@ -1,9 +1,21 @@
-2006-11-14 Tavis Ormandy <taviso@sdf.lonestat.org>
+2006-11-16 Tavis Ormandy <taviso@sdf.lonestar.org>
+    * Made buffer management more intelligent.
+    * Add commands to list and delete regions (lregions, dregion).
+    * Add commands to indicate variable has increased or decreased (<, >).
+    * Improved usability of set, cont, list, etc.
+    * Add progress meter, large programs can take a long time for initial scan.
+    * Testing support for variable width targets, signedness not currenlty handled.
+    * delete command to eliminate matches.
+    * list command now shows where a variable is located.
+    * General code cleanup.
+    * Eliminate useless command line options, use interactive versions instead.
+    * Improved documentation.
+
+2006-11-14 Tavis Ormandy <taviso@sdf.lonestar.org>
     * Applied patch from Brian Lewis <bsl04 (at) uark.edu>
     * Install signal handler to detach from target on sigint/sighup/sigquit.
     * Improved Makefile
     * Added initial man page
-    * Fix bug that didnt eliminate all possible candidates.
 
 2006-11-13 Tavis Ormandy <taviso@sdf.lonestar.org>
     * Initial version

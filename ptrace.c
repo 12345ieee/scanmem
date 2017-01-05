@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.3 $
+* $Revision: 1.5 $
 */
 
 #include <sys/ptrace.h>
@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <limits.h>
+#include <stdbool.h>
 
 #include "scanmem.h"
 
@@ -41,52 +44,134 @@ int detach(pid_t target)
     return ptrace(PTRACE_DETACH, target, NULL, 0);
 }
 
-int candidates(intptr_t **matches, unsigned *num, region_t *regions, unsigned count,
-    pid_t target, unsigned value)
+int candidates(list_t *matches, list_t *regions, pid_t target, unsigned value, unsigned width,
+               matchtype_t type)
 {
+    unsigned mask = ~0;
+    (void) type;
+    
+    /* calculate shift for mask */
+    width = (sizeof(unsigned) * CHAR_BIT) - width;
+    
+    /* stop and attach to the target */
+    if (attach(target) == -1)
+        return -1;
+    
     /* do we already have a list of locations to check? */
-    if (*num != 0 && *matches != NULL) {
-        unsigned i;
-
-        for (i = 0; i < *num; i++) {
-            if (ptrace(PTRACE_PEEKDATA, target, (*matches)[i], NULL) == (long) value) {
-                /* still a candidate */
-                continue;
-            } else {
-                memmove(&(*matches)[i], &(*matches)[i+1], (--(*num) - i) * sizeof(intptr_t));
-                if ((*matches = realloc(*matches, *num * sizeof(intptr_t))) == NULL) {
-                    fprintf(stderr, "error: there was a problem allocating memory.\n");
+    if (matches->size) {
+        element_t *n, *p;
+        
+        p = NULL;
+        n = matches->head;
+        
+        while (n) {
+            match_t *match = n->data;
+            unsigned cval;
+            bool t;
+            
+            cval = ptrace(PTRACE_PEEKDATA, target, match->address, NULL) & (mask >> width);
+            
+            switch (type) {
+                case MATCHEXACT:
+                    t = (cval == value);
+                    break;
+                case MATCHDECREMENT:
+                    t = (cval < match->lvalue);
+                    break;
+                case MATCHINCREMENT:
+                    t = (cval > match->lvalue);
+                    break;
+                default:
+                    fprintf(stderr, "error: unrecognised type.\n");
                     return -1;
-                }
-                --i;
+            }
+            
+            if (t) {
+                /* still a candidate */
+                match->lvalue = cval;
+                p = n;
+                n = n->next;
+            } else {
+                /* no match */
+                l_remove(matches, p, NULL);
+                
+                /* confirm this isnt the head element */
+                n = p ? p->next : matches->head;
             }
         }
-    } else {
-        unsigned j, k;
+    } else if (type == MATCHEXACT) {
+        element_t *n = regions->head;
+        region_t *r;
+        
+        /* make sure we have some regions to search */
+        if (regions->size == 0) {
+            fprintf(stderr, "warn: no regions defined, perhaps you deleted them all?\n");
+            fprintf(stderr, "info: use the \"reset\" command to refresh regions.\n");
+            return detach(target);
+        }
+        
+        /* first time, we have to check every memory region */
+        while (n) {
+            unsigned offset;
+            
+            r = n->data;
 
-        /* for every memory region */
-        for (j = 0; j < count; j++) {
-
-            /* for every aligned word */
-            for (k = regions[j].region; k < regions[j].region + regions[j].size; k++) {
-
-                if (ptrace(PTRACE_PEEKDATA, target, k, NULL) == (long) value) {
-                    if ((*matches = realloc(*matches, ++(*num) * sizeof(intptr_t))) == NULL) {
-                        fprintf(stderr, "error: there was a problem allocating memory.\n");
+            /* this first scan can be very slow on large programs, eg quake3 ;)  */
+            /* print a progress meter so user knows we havnt crashed */
+            fprintf(stderr, "info: searching %#010x - %#010x.", r->start, r->start + r->size);
+            fflush(stderr);
+            
+            /* for every word */
+            for (offset = 0; offset < r->size; offset++) {
+                if ((ptrace(PTRACE_PEEKDATA, target, r->start + offset, NULL) & (mask >> width)) == value) {
+                    match_t *match;
+                    
+						  /* save this new location */
+                    if ((match = calloc(1, sizeof(match_t))) == NULL) {
+                        fprintf(stderr, "error: memory allocation failed.\n");
+                        (void) detach(target);
                         return -1;
                     }
-
-                    /* save this new location */
-                    (*matches)[*num - 1] = k;
+                    
+                    match->address = r->start + offset;
+                    match->region = r;
+                    match->lvalue = value;
+                    
+                    if (l_append(matches, NULL, match) == -1) {
+                        fprintf(stderr, "error: unable to add match to list.\n");
+                        (void) detach(target);
+                        return -1;
+                    }
+                }
+                
+                /* print a simple progress meter. */
+                if (offset % ((r->size - (r->size % 10)) / 10) == 10) {
+                    fprintf(stderr, ".");
+                    fflush(stderr);
                 }
             }
+            n = n->next;
+            fprintf(stderr, "ok\n");
         }
+    } else {
+        fprintf(stderr, "warn: you cannot use that search without any candidates.\n");
     }
 
-    return 0;
+    eprintf("info: we currently have %d matches.\n", matches->size);
+    
+    /* okay, detach */
+    return detach(target);
 }
 
 int setaddr(pid_t target, intptr_t addr, unsigned to)
 {
-    return ptrace(PTRACE_POKEDATA, target, addr, to);
+    if (attach(target) == -1) {
+        return -1;
+    }
+    
+    if (ptrace(PTRACE_POKEDATA, target, addr, to) == -1) {
+        return -1;
+    }
+    
+    return detach(target);
 }

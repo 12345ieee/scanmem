@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.5 $
+* $Revision: 1.7 $
 *
 */
 
@@ -18,64 +18,41 @@
 #include <getopt.h>
 #include <string.h>
 #include <signal.h>
+#include <limits.h>
+#include <assert.h>
 
 #include "scanmem.h"
+#include "list.h"
 
-pid_t pid; /* used on signal to detach from target */
-
-/* TODO: also search registers */
+pid_t target; /* used on signal to detach from target */
 
 int main(int argc, char **argv)
 {
-    pid_t target = 0;
-    int optindex, continuous = 0;
-    unsigned count = 0, value = 0, num = 0, to = 0;
-    region_t *regions = NULL;
-    intptr_t *matches = NULL;
+    int optindex, ret = 0;
+    unsigned continuous = 0, width = sizeof(unsigned) * CHAR_BIT, max = 0xffff;
+    list_t *regions = NULL, *matches = NULL;
+    element_t *n = NULL;
     struct option longopts[] = {
-        { "pid",         1, NULL, 'p' },  /* the target program */
-        { "value",       1, NULL, 'V' },  /* value of search */
-        { "to",          1, NULL, 't' },  /* what to change value to */
+        { "pid",         1, NULL, 'p' },  /* target pid */
         { "version",     0, NULL, 'v' },  /* print version */
         { "help",        0, NULL, 'h' },  /* print help summary */
-        { "width",       1, NULL, 'w' },  /* width in bytes */
-        { "continuous",  1, NULL, 'c' },  /* continually inject to value every second */
         { NULL,          0, NULL,  0  },
     };
 
+    (void) max; /* plan to implement max matches at some point, to prevent memory exhaustion */
+    
     /* process command line */
     while (true) {
-        switch (getopt_long(argc, argv, "p:iV:t:hv", longopts, &optindex)) {
-            case 'p': /* pid */
-                pid = target = (pid_t) strtoul(optarg, NULL, 0);
-                break;
-            case 'V': /* initial value to search for */
-                value = strtoul(optarg, NULL, 0);
-                break;
-            case 't': /* value to set when value has been uniquely identified */
-                to = strtoul(optarg, NULL, 0);
-                break;
-            case 'c': /* continuous, use once per second to wait */
-                continuous++;
+        switch (getopt_long(argc, argv, ":vhw", longopts, &optindex)) {
+            case 'p':
+                target = (pid_t) strtoul(optarg, NULL, 0);
                 break;
             case 'v':
-                fprintf(stderr, "scanmem %s\n", VERSIONSTRING);
+                printversion();
                 return 0;
                 break;
             case 'h':
-                fprintf(stderr, "scanmem %s, a ptrace() toy.\n"
-                                "\tby Tavis Ormandy, taviso@sdf.lonestar.org\n\n"
-                                "\t--pid n (required)\n"
-                                "\t\tset the target program pid to n\n"
-                                "\t--to n (default: 0)\n"
-                                "\t\tset to this value when the location has been isolated.\n"
-                                "\t--value n (default: 0)\n"
-                                "\t\tthe value of the variable to search for\n"
-                                "\t--continuous (default: off)\n"
-                                "\t\tonce found, continually inject new value every second.\n"
-                                "\t\tuse once per second to wait.\n"
-                                "\t--width n (default: 4)\n"
-                                "\t\tthe sizeof the variable to find\n", VERSIONSTRING);
+                printhelp();
                 return 0;
                 break;
             case -1:
@@ -89,8 +66,10 @@ int main(int argc, char **argv)
 done:
 
     /* check if pid was specified */
-    if (target == 0) {
-        fprintf(stderr, "error: you must specify a pid.\n");
+    if (target) {
+        eprintf("info: attaching to pid %u.\n", target);
+    } else {
+        fprintf(stderr, "error: you must specify a pid, use --help for assistance.\n");
         return 1;
     }
 
@@ -98,180 +77,319 @@ done:
     signal(SIGHUP, sighandler);
     signal(SIGINT, sighandler);
     signal(SIGQUIT, sighandler);
+    signal(SIGSEGV, sighandler);
+    signal(SIGABRT, sighandler);
+    signal(SIGILL, sighandler);
 
-    /* we have the information we require, now halt this process and attach */
-    if (attach(target) == -1) {
-        fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
-        goto error;
+    /* create a new linked list of regions */
+    if ((regions = l_init()) == NULL) {
+        fprintf(stderr, "error: sorry, there was a memory allocation error.\n");
+        ret++;
+        goto end;
     }
-
-    /* now process is halted, and we are in control, get a list of addresses */
-    if (readmaps(target, &regions, &count) == -1) {
+    
+    /* get list of regions */
+    if (readmaps(target, regions) == -1) {
         fprintf(stderr, "error: sorry, there was a problem getting a list of regions to search.\n");
-        goto error;
+        ret++;
+        goto end;
     }
 
-    /* okay, now continue and let him run */
-    if (detach(target) == -1) {
-        fprintf(stderr, "error: failed to detach from target\n");
+    /* create a list to store matches */
+    if ((matches = l_init()) == NULL) {
+        fprintf(stderr, "error: sorry, there was a memory allocation error.\n");
+        ret++;
+        goto end;
     }
-
+    
+    eprintf("info: %u suitable regions found.\n", regions->size);
+    
+    fprintf(stderr, "Please enter current value, or \"help\" for other commands.\n");
+       
+    /* main loop, read input and process commands */
     while (true) {
-        char *line = NULL;
-        size_t len = 0;
-
-        fprintf(stderr, "Please enter current value, or \"help\" for other commands.\n");
-
-        while (true) {
-            fprintf(stderr, "[%u]> ", value);
-            fflush(stderr);
-
-            if (getline(&line, &len, stdin) == -1) {
-                fprintf(stderr, "exit\n");
-                free(line);
-                goto error;
-             }
-
-             if (strncmp(line, "help", 4) == 0) {
-                 fprintf(stderr,
-                     "\tlist\t- print all known matches.\n"
-                     "\tset all\t- set all matches to %u.\n"
-                     "\tset n\t- set match n to %u.\n"
-                     "\tto n\t- change to value to n.\n"
-                     "\tcont\t- toggle continuous mode.\n"
-                     "\texit\t- exit scanmem.\n"
-                     "\tabout\t- about scanmem.\n"
-                     "\thelp\t- this screen.\n", to, to);
-                 continue;
-             } else if (strncmp(line, "list", 4) == 0) {
-                 unsigned p;
-
-                 for (p = 0; p < num; p++) {
-                     fprintf(stderr, "[%02u] %#010x\n", p, matches[p]);
-                 }
-
-                 continue;
-             } else if (strncmp(line, "set ", 4) == 0) {
-                 if (strncmp(line + 4, "all", 3) == 0) {
-                     unsigned p;
-
-                      for (p = 0; p < num; p++) {
-                          fprintf(stderr, "+ %#010x -> %u\n", matches[p], to);
-                          setaddr(target, matches[p], to);
-                      }
-                 } else {
-                     unsigned p;
-                     if ((p = strtoul(line + 4, NULL, 0)) <= num) {
-                         fprintf(stderr, "+ %#010x -> %u\n", matches[p], to);
-                         setaddr(target, matches[p], to);
-                     }
-                 }
-
-                continue;
-               } else if (strncmp(line, "to ", 3) == 0) {
-                   to = strtoul(line + 3, NULL, 0);
-                   continue;
-               } else if (strncmp(line, "cont", 4) == 0) {
-                   if (continuous) continuous = 0;
-                   else continuous++;
-                   continue;
-               } else if (strncmp(line, "exit", 4) == 0) {
-                   free(line);
-                   goto error;
-               } else if (strncmp(line, "about", 5) == 0) {
-                   fprintf(stderr, "scanmem, a ptrace() toy by Tavis Ormandy.\n");
-                   continue;
-               }
-
-               break;
-
-            }
-
-				/* if we dont want the same value, reset it */
-            if (*line != '\n' && *line != '\0') {
-                char *end;
-
-                value = strtoul(line, &end, 0);
-
-                /* check if there was anything valid */
-                if (end == line) {
-                    continue;
+        unsigned operand;
+      
+        switch (getcommand(matches->size, &operand)) {
+            case COMMAND_EXACT:
+                /* user has specified an exact value of the variable to find */
+                if (candidates(matches, regions, target, operand, width, MATCHEXACT) == -1) {
+                    fprintf(stderr, "error: failed to search target address space.\n");
+                    ret++;
+                    goto end;
                 }
-        }
-
-        free(line);
-		  /* stop the target machine to initiate search */
-        if (attach(target) == -1) {
-            fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
-            goto error;
-        }
-
-         /* search for matches */
-        candidates(&matches, &num, regions, count, target, value);
-
-        fprintf(stderr, "info: we currently have %d matches.\n", num);
-
-        if (num == 1) {
-            fprintf(stderr, "info: found, setting *%#010x to %u...\n", *matches, to);
-
-            if (continuous) {
-                fprintf(stderr, "info: setting value every %u seconds...\n", continuous);
-            }
-
-            while (true) {
-                setaddr(target, *matches, to);
-
-                if (continuous == 0) {
-                    break;
+                
+                /* check if we now know the only possible candidate */
+                if (matches->size == 1) {
+                    fprintf(stderr, "info: match identified, use \"set\" to modify value.\n");
+                    fprintf(stderr, "info: enter \"help\" for other commands.\n");
                 }
-
-                if (detach(target) == -1) {
-                    fprintf(stderr, "error: failed to detach from target\n");
+                break;
+            case COMMAND_INCREMENT:
+                /* check if user has indicated that the variable is now higher than last time seen */
+                if (candidates(matches, regions, target, 0x00, width, MATCHINCREMENT) == -1) {
+                    fprintf(stderr, "error: failed to search target address space.\n");
+                    ret++;
+                    goto end;
                 }
-
-                sleep(continuous);
-
-                /* stop the target machine to initiate search */
-                if (attach(target) == -1) {
-                    fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
-                    goto error;
+                
+                if (matches->size == 1) {
+                    fprintf(stderr, "info: match identified, use \"set\" to modify value.\n");
+                    fprintf(stderr, "info: enter \"help\" for other commands.\n");
                 }
-                fprintf(stderr, "info: setting *%#010x to %u...\n", *matches, to);
-            }
+                break;
+            case COMMAND_DECREMENT:
+                /* the user indicated the value is now lower than last time seen */
+                if (candidates(matches, regions, target, 0x00, width, MATCHDECREMENT) == -1) {
+                    fprintf(stderr, "error: failed to search target address space.\n");
+                    ret++;
+                    goto end;
+                }
+                
+                if (matches->size == 1) {
+                    fprintf(stderr, "info: match identified, use \"set\" to modify value.\n");
+                    fprintf(stderr, "info: enter \"help\" for other commands.\n");
+                }
+                break;
+            case COMMAND_CONTINUOUS:
+                /* the set command should continually inject the specified value */
+                if ((continuous = operand)) {
+                    fprintf(stderr, "info: use \"set\" to start injecting value every %u seconds.\n", operand);
+                } else {
+                    /* zero operand indicated disable continuous mode */
+                    fprintf(stderr, "info: continuous mode disabled.\n");
+                }
+                break;
+            case COMMAND_SET:
+                if (continuous) {
+                    fprintf(stderr, "info: setting value every %u seconds until interrupted...\n", continuous);
+                }
+                
+					 /* set every value in match list to operand */
+                while (true) {
+                    element_t *n = matches->head;
+                      
+                    while (n) {
+                        match_t *match = n->data;
+                            
+                        fprintf(stderr, "info: setting *%#010x to %u...\n", match->address, operand);
+                            
+                        if (setaddr(target, match->address, operand) == -1) {
+                            fprintf(stderr, "error: failed to set a value.\n");
+                            ret++;
+                            goto end;
+                        }
+                          
+                        n = n->next;
+                    }
 
-            if (detach(target) == -1) {
-                fprintf(stderr, "error: failed to detach from target\n");
-            }
-
-            break;
+                    if (continuous) {
+                        sleep(continuous);
+                    } else {
+                        break;
+                    }
+                        
+                }
+                break;
+            case COMMAND_LIST: {
+                    unsigned i = 0;
+                    element_t *n = matches->head;
+                    
+                    /* list all known matches */
+                    while (n) {
+                        match_t *match = n->data;
+                        fprintf(stderr, "[%02u] %#010x {%10u} (%s)\n", i++, 
+                            match->address, match->lvalue,
+                            match->region->pathname ? match->region->pathname :
+                                "unassociated, typically .bss");
+                        n = n->next;
+                    }
+                }
+                break;
+            case COMMAND_DELETE: {
+                    unsigned i;
+                    element_t *n = matches->head;
+                    
+                    /* delete the nth match from the matches list */
+                    if (operand < matches->size) {
+                        for (i = 0; n && i < operand - 1; i++, n = n->next)
+                            ;
+                        l_remove(matches, n, NULL);
+                    } else {
+                        fprintf(stderr, "warn: you attempted to delete a non-existant match `%u`.\n", operand);
+                        fprintf(stderr, "info: use \"list\" to list matches, or \"help\" for other commands.\n");
+                    }
+                }
+                break;
+            case COMMAND_PID:
+                /* print the pid of the target program */
+                fprintf(stderr, "info: target pid is %u.\n", target);
+                break;
+            case COMMAND_EXIT:
+                /* exit now */
+                goto end;
+                break;
+            case COMMAND_WIDTH:
+                /* change width of target */
+                if ((operand > CHAR_BIT * sizeof(unsigned) || operand % CHAR_BIT != 0) && operand != 0) {
+                    fprintf(stderr, "info: %u is invalid, width must be multiple of %d and <= %d.\n",
+                        operand, CHAR_BIT, sizeof(unsigned) * CHAR_BIT);
+                } else if (operand != 0) {
+                    if (matches->size) {
+                        fprintf(stderr, "warn: you cannot change the width when you have matches.\n");
+                        fprintf(stderr, "info: use \"reset\" to remove matches, or \"help\" for other commands.\n");
+                    } else {
+                        width = operand;
+                    }
+                }
+                
+                fprintf(stderr, "info: width is currently set to %u.\n", width);
+                break;
+            case COMMAND_LISTREGIONS: {
+                    unsigned i = 0;
+                    element_t *n = regions->head;
+                    
+                    /* print a list of regions that are searched */
+                    while (n) {
+                        region_t *region = n->data;
+                        fprintf(stderr, "[%02u] %#010x, %u bytes, %c%c%c, %s\n", i++, 
+                            region->start, region->size, region->perms & MAP_RD ? 'r' : '-',
+                            region->perms & MAP_WR ? 'w' : '-', region->perms & MAP_EX ? 'x' : '-',
+                            region->pathname ? region->pathname :
+                                "unassociated");
+                        n = n->next;
+                    }
+                }
+                break;
+            case COMMAND_DELREGIONS: {
+                    unsigned i;
+                    element_t *n = regions->head, *t = matches->head, *p = NULL;
+                    
+                    /* delete the nth region */
+                    if (operand < regions->size) {
+                        
+                        /* traverse list to element */
+                        for (i = 0; n && i < operand - 1; i++, n = n->next)
+                            ; 
+                        
+                        /* check for any affected matches before removing it */
+                        while (t) {
+                            match_t *match = t->data;
+                            region_t *s;
+                            
+                            /* determine the correct pointer we're supposed to be checking */
+                            if (n) {
+                                assert(n->next);
+                                s = n->next->data;
+                            } else {
+                                /* head of list */
+                                s = regions->head->data;
+                            }
+                            
+                            /* check if this one should go */
+                            if (match->region == s) {
+                                /* remove this match */
+                                l_remove(matches, p, NULL);
+                                
+                                /* move to next element */
+                                t = p ? p->next : matches->head;
+                            } else {
+                                p = t;
+                                t = t->next;
+                            }
+                        }
+                        l_remove(regions, n, NULL);
+                    } else {
+                        fprintf(stderr, "warn: you attempted to delete a non-existant region `%u`.\n", operand);
+                        fprintf(stderr, "info: use \"lregions\" to list regions, or \"help\" for other commands.\n");
+                    }
+                }
+                break;
+            case COMMAND_RESET:
+                /* forget all matches */
+                l_destroy(matches);
+                
+                if ((matches = l_init()) == NULL) {
+                    fprintf(stderr, "error: sorry, there was a memory allocation error.\n");
+                    ret++;
+                    goto end;
+                }
+                
+                /* refresh list of regions */
+                l_destroy(regions);
+                /* create a new linked list of regions */
+                if ((regions = l_init()) == NULL || readmaps(target, regions) == -1) {
+                    fprintf(stderr, "error: sorry, there was a problem getting a list of regions to search.\n");
+                    ret++;
+                    goto end;
+                }
+                break;
+            case COMMAND_VERSION:
+                printversion();
+                break;
+            case COMMAND_HELP:
+                printinthelp();
+                break;
+            case COMMAND_ERROR:
+            default:
+                fprintf(stderr, "Please enter current value, or \"help\" for other commands.\n");
+                break;
         }
-
-        if (detach(target) == -1) {
-            fprintf(stderr, "error: failed to detach from target\n");
-        }
-
-        fprintf(stderr, "info: detached from target.\n");
     }
 
-    free(regions);
-    free(matches);
-    return 0;
-
-error:
-    free(regions);
-    free(matches);
+end:
+    /* first free all the pathnames from region list */
+    if (regions) {
+        n = regions->head;
+    }
+    
+    while (n) {
+        region_t *r = n->data;
+        free(r->pathname);
+        n = n->next;
+    }
+    
+    /* now free allocated memory used */
+    if (regions) {
+        l_destroy(regions);
+    }
+    
+    if (matches) {
+        l_destroy(matches);
+    }
+    
+    /* attempt to detach just in case */
     (void) detach(target);
-
-    return 1;
+    
+    return ret;
 }
 
 void sighandler(int n)
 {
     (void) n;
     
-    if (pid) {
-        (void) detach(pid);
+    if (target) {
+        (void) detach(target);
     }
     
     exit(1);
+}
+
+void printhelp(void)
+{
+    printversion();
+ 
+    fprintf(stderr, "\n--pid pid (required)\n"
+        "\tset the target process pid.\n"
+        "--help\n"
+        "\tprint this message.\n"
+        "--version\n"
+        "\tprint version message.\n");
+    return;
+}
+
+void printversion(void)
+{
+    fprintf(stderr, "scanmem %s - Tavis Ormandy <taviso@sdf.lonestar.org>\n", VERSIONSTRING);
+    return;
 }
