@@ -1,2 +1,20 @@
+/*
+*
+* $Author: taviso $
+* $Revision: 1.2 $
+* $Log: README,v $
+* Revision 1.2  2006-11-14 11:17:25+00  taviso
+* *** Empty log message ***
+*
+*
+*/
+
+scanmem is a debugging utility designed to isolate the address of an arbitrary
+variable in an executing process. scanmem simply needs to be told the pid of the
+process, and the value of the variable at several different times.
+
+After several scans of the process, scanmem isolates the position of the variable
+and allows you to modify it's value.
+
 Author: Tavis Ormandy <taviso@sdf.lonestar.org>
-License: GPL2
+License: GPL

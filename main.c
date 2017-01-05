@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.1 $
+* $Revision: 1.5 $
 *
 */
 
@@ -17,8 +17,11 @@
 #include <stddef.h>
 #include <getopt.h>
 #include <string.h>
+#include <signal.h>
 
 #include "scanmem.h"
+
+pid_t pid; /* used on signal to detach from target */
 
 /* TODO: also search registers */
 
@@ -39,12 +42,12 @@ int main(int argc, char **argv)
         { "continuous",  1, NULL, 'c' },  /* continually inject to value every second */
         { NULL,          0, NULL,  0  },
     };
-        
+
     /* process command line */
     while (true) {
         switch (getopt_long(argc, argv, "p:iV:t:hv", longopts, &optindex)) {
             case 'p': /* pid */
-                target = (pid_t) strtoul(optarg, NULL, 0);
+                pid = target = (pid_t) strtoul(optarg, NULL, 0);
                 break;
             case 'V': /* initial value to search for */
                 value = strtoul(optarg, NULL, 0);
@@ -59,7 +62,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "scanmem %s\n", VERSIONSTRING);
                 return 0;
                 break;
-            case 'h': 
+            case 'h':
                 fprintf(stderr, "scanmem %s, a ptrace() toy.\n"
                                 "\tby Tavis Ormandy, taviso@sdf.lonestar.org\n\n"
                                 "\t--pid n (required)\n"
@@ -82,48 +85,53 @@ int main(int argc, char **argv)
                 break;
         }
     }
-    
+
 done:
-    
+
     /* check if pid was specified */
     if (target == 0) {
         fprintf(stderr, "error: you must specify a pid.\n");
         return 1;
     }
-    
+
+    /* before attaching to target, install signal handler to detach on error */
+    signal(SIGHUP, sighandler);
+    signal(SIGINT, sighandler);
+    signal(SIGQUIT, sighandler);
+
     /* we have the information we require, now halt this process and attach */
     if (attach(target) == -1) {
         fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
         goto error;
     }
-    
+
     /* now process is halted, and we are in control, get a list of addresses */
     if (readmaps(target, &regions, &count) == -1) {
         fprintf(stderr, "error: sorry, there was a problem getting a list of regions to search.\n");
         goto error;
     }
-    
+
     /* okay, now continue and let him run */
     if (detach(target) == -1) {
         fprintf(stderr, "error: failed to detach from target\n");
-    }    
-    
+    }
+
     while (true) {
         char *line = NULL;
         size_t len = 0;
-            
+
         fprintf(stderr, "Please enter current value, or \"help\" for other commands.\n");
-            
+
         while (true) {
             fprintf(stderr, "[%u]> ", value);
             fflush(stderr);
-                
+
             if (getline(&line, &len, stdin) == -1) {
                 fprintf(stderr, "exit\n");
                 free(line);
                 goto error;
              }
-            
+
              if (strncmp(line, "help", 4) == 0) {
                  fprintf(stderr,
                      "\tlist\t- print all known matches.\n"
@@ -137,16 +145,16 @@ done:
                  continue;
              } else if (strncmp(line, "list", 4) == 0) {
                  unsigned p;
-                    
+
                  for (p = 0; p < num; p++) {
                      fprintf(stderr, "[%02u] %#010x\n", p, matches[p]);
                  }
-                 
+
                  continue;
              } else if (strncmp(line, "set ", 4) == 0) {
                  if (strncmp(line + 4, "all", 3) == 0) {
                      unsigned p;
-                        
+
                       for (p = 0; p < num; p++) {
                           fprintf(stderr, "+ %#010x -> %u\n", matches[p], to);
                           setaddr(target, matches[p], to);
@@ -158,7 +166,7 @@ done:
                          setaddr(target, matches[p], to);
                      }
                  }
-                
+
                 continue;
                } else if (strncmp(line, "to ", 3) == 0) {
                    to = strtoul(line + 3, NULL, 0);
@@ -174,55 +182,55 @@ done:
                    fprintf(stderr, "scanmem, a ptrace() toy by Tavis Ormandy.\n");
                    continue;
                }
-                
+
                break;
 
             }
-            
+
 				/* if we dont want the same value, reset it */
             if (*line != '\n' && *line != '\0') {
                 char *end;
-            
+
                 value = strtoul(line, &end, 0);
-                
+
                 /* check if there was anything valid */
                 if (end == line) {
                     continue;
                 }
-        }   
-            
+        }
+
         free(line);
 		  /* stop the target machine to initiate search */
         if (attach(target) == -1) {
             fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
             goto error;
         }
-           
+
          /* search for matches */
-        candidates(&matches, &num, regions, count, target, value, true);
-        
+        candidates(&matches, &num, regions, count, target, value);
+
         fprintf(stderr, "info: we currently have %d matches.\n", num);
-        
+
         if (num == 1) {
             fprintf(stderr, "info: found, setting *%#010x to %u...\n", *matches, to);
-            
+
             if (continuous) {
                 fprintf(stderr, "info: setting value every %u seconds...\n", continuous);
             }
-            
+
             while (true) {
                 setaddr(target, *matches, to);
-                
+
                 if (continuous == 0) {
                     break;
                 }
-                
+
                 if (detach(target) == -1) {
                     fprintf(stderr, "error: failed to detach from target\n");
-                } 
-                
+                }
+
                 sleep(continuous);
-                
+
                 /* stop the target machine to initiate search */
                 if (attach(target) == -1) {
                     fprintf(stderr, "error: sorry, there was a problem attaching to the target.\n");
@@ -230,29 +238,40 @@ done:
                 }
                 fprintf(stderr, "info: setting *%#010x to %u...\n", *matches, to);
             }
-            
+
             if (detach(target) == -1) {
                 fprintf(stderr, "error: failed to detach from target\n");
-            } 
-            
+            }
+
             break;
         }
-        
+
         if (detach(target) == -1) {
             fprintf(stderr, "error: failed to detach from target\n");
-        } 
-        
+        }
+
         fprintf(stderr, "info: detached from target.\n");
-    }  
-    
+    }
+
     free(regions);
     free(matches);
     return 0;
-    
+
 error:
     free(regions);
     free(matches);
     (void) detach(target);
-    
+
     return 1;
+}
+
+void sighandler(int n)
+{
+    (void) n;
+    
+    if (pid) {
+        (void) detach(pid);
+    }
+    
+    exit(1);
 }

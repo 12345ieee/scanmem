@@ -1,11 +1,24 @@
+#
+# $Id: Makefile,v 1.2 2006-11-14 11:17:34+00 taviso Exp taviso $
+#
+
+SOURCES=main.c maps.c ptrace.c
+DISTFILES=$(SOURCES) scanmem.h Makefile scanmem.1 ChangeLog README TODO
+CFLAGS=-W -Wall -O2
+VERSION=0.02
 CC=gcc
-CFLAGS=-O2 -Wall
 
-scanmem: main.o maps.o ptrace.o
-	$(CC) $(CFLAGS) -o scanmem main.o maps.o ptrace.o
+all: scanmem
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $<
+scanmem: $(SOURCES:.c=.o)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(SOURCES:.c=.o)
 
 clean:
-	-rm -f *.o scanmem *.core core
+	-rm -f $(SOURCES:.c=.o) scanmem *.core scanmem-*.tar.gz
+	-rm -rf scanmem-$(VERSION)
+
+dist: clean
+	mkdir scanmem-$(VERSION)
+	cp $(DISTFILES) scanmem-$(VERSION)
+	tar -zcvf scanmem-$(VERSION).tar.gz scanmem-$(VERSION)
+	@ls -l scanmem-$(VERSION).tar.gz

@@ -1,0 +1,60 @@
+.TH scanmem 1 "Novermber 14, 2005" "version 0.02"
+.SH NAME
+scanmem - locate and modify a variable in an executing process.
+
+.SH SYNOPSIS
+.B scanmem
+.RB \-\-pid 
+.IR          target-program-pid
+.RB [ \-\-to
+.IR          value-to-set ]
+.RB [ \-\-value
+.IR          initial-value ]
+.RB [ \-\-continuous
+.IR          ]
+.RB [ \-\-width 
+.IR          sizeof-variable ]
+
+.SH DESCRIPTION
+scanmem is an interactive debugging utility that can be used to isolate the address of a variable
+in an executing process by successively scanning the process looking for candidates.
+By telling scanmem how the value of the variable changes over time, it eliminates variables until
+it has found the variable in question.
+
+Once found, scanmem can modify the variable, to either a specific value, or continually injecting
+a value over a period of time.
+
+.SH USAGE
+scanmem should be invoked with --pid, it will then attach to the process and prompt for the value
+of the variable at that time.
+
+.SH COMMANDS
+At the scanmem > prompt, you can enter "help", "about", "exit", "cont", "to", "set", "list".
+
+.SH EXAMPLES
+Cheat at robots by continually entering your score.
+
+.nf
+$ ./scanmem --pid `pidof robots`
+info: maps file located at /proc/22149/maps opened.
+Please enter current value, or "help" for other commands.
+[0]> to 65535
+[0]> 0
+info: we currently have 156079 matches.
+info: detached from target.
+Please enter current value, or "help" for other commands.
+[0]> 20
+info: we currently have 2 matches.
+info: detached from target.
+Please enter current value, or "help" for other commands.
+[20]> 60
+info: we currently have 1 matches.
+info: found, setting *0x0804ce2c to 65535...
+.fi
+
+.SH AUTHOR
+Tavis Ormandy <taviso@sdf.lonestar.org>
+
+.SH SEE ALSO
+gdb(1)
+ptrace(2)

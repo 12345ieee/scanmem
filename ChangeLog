@@ -1,0 +1,9 @@
+2006-11-14 Tavis Ormandy <taviso@sdf.lonestat.org>
+    * Applied patch from Brian Lewis <bsl04 (at) uark.edu>
+    * Install signal handler to detach from target on sigint/sighup/sigquit.
+    * Improved Makefile
+    * Added initial man page
+    * Fix bug that didnt eliminate all possible candidates.
+
+2006-11-13 Tavis Ormandy <taviso@sdf.lonestar.org>
+    * Initial version

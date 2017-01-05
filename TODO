@@ -1,0 +1,9 @@
+* also search registers
+* allow variable length integers, floats and doubles?
+* improve command parsing in interactive mode
+* dont exit after finding, allow more commands like set to 12, now set to 43, etc
+* allow pseudo values, like `incremented since last time` `decremented since last time` etc.
+* be more verbose about where the variable is, allow list command to eliminate variables
+    * eg, if its from a library thats nothing to do with it, kill it.
+* sometimes hitting enter several times eliminates more, why? can i run canddidates() until it stabilises?
+    * probably timers or something
