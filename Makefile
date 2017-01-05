@@ -1,14 +1,14 @@
 #
-# $Id: Makefile,v 1.6 2007-01-22 22:51:10+00 taviso Exp taviso $
+# $Id: Makefile,v 1.8 2007-03-03 13:25:56+00 taviso Exp $
 #
 
 SOURCES=main.c maps.c ptrace.c list.c menu.c
 INCLUDES=scanmem.h list.h
 DISTFILES=$(SOURCES) $(INCLUDES) Makefile scanmem.1 ChangeLog README TODO
-VERSION=0.04
+VERSION=0.05
 CC=gcc
 CFLAGS=-W -Wall -O2 -DVERSIONSTRING="\"v$(VERSION)\""
-LDFLAGS=-lreadline
+LDFLAGS=-lreadline -lm
 PREFIX=/usr/local
 
 all: scanmem

@@ -1,7 +1,9 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.3 $
+* $Revision: 1.5 $
+*
+* A very simple linked list implementation.
 *
 */
 
@@ -23,12 +25,12 @@ typedef struct {
 list_t *l_init(void);
 
 /* destroy the whole list */
-void l_destroy(list_t *list);
+void l_destroy(list_t * list);
 
 /* add a new element to the list */
-int l_append(list_t *list, element_t *element, void *data);
+int l_append(list_t * list, element_t * element, void *data);
 
 /* remove the element at element->next */
-void l_remove(list_t *list, element_t *element, void **data);
+void l_remove(list_t * list, element_t * element, void **data);
 
 #endif

@@ -1,10 +1,20 @@
-* Option to search registers.
-* Memory limits, warn on too many matches?
+Next Version
+============
+* search registers.
+* memory limits, warn on too many matches?
+* support float type, and perhaps double and long long.
+* more efficient snapshot.
+* tab completion
+* multiple background cont'd sets.
+
+Future
+======
 * Allow user to build a set of addresses and values that can be re-inserted on command. (macros)
-* Use readline.
 * allow user to save addresses with labels
 * differentiate between signed and unsigned integers, > and < probably dont work for these right now.
 * better command line parsing.
 * better online help, eg "help delete"
 * memory leak with dregion (free the pathname)
 * implement a completion function for readline.
+* support float type, and perhaps double and long long.
+* shell escape

@@ -1,3 +1,13 @@
+2007-03-04 Tavis Ormandy <taviso@sdf.lonestar.org>
+    * buffered overlapping peeks to improve scan performance.
+    * automatically support chars, shorts and ints.
+        - removed width command
+    * pid command can change target.
+    * = command, to accompany < and > to indicate variable has not changed.
+    * snapshot command to enhance <, > and =. WARNING: experimental, very inefficient.
+        - snapshot will use a more efficient format next version, right now it
+          should not be used on large programs, or will eat all your free memory.
+
 2007-01-11 Tavis Ormandy <taviso@sdf.lonestar.org>
     * cleaned up some lintian errors
     * used __builtin_expect() to try to improve performance in some areas

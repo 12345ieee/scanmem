@@ -1,7 +1,7 @@
 /*
 *
 * $Author: taviso $
-* $Revision: 1.5 $
+* $Revision: 1.7 $
 *
 */
 
@@ -18,7 +18,7 @@
 
 #include "scanmem.h"
 
-int readmaps(pid_t target, list_t *regions)
+int readmaps(pid_t target, list_t * regions)
 {
     FILE *maps;
     char name[22], *line = NULL;
@@ -37,54 +37,61 @@ int readmaps(pid_t target, list_t *regions)
 
     /* read every line of the maps file */
     while (getline(&line, &len, maps) != -1) {
-        intptr_t start, end;
+        void *start, *end;
         region_t *map = NULL;
         char read, write, exec, cow, *pathname;
 
         if ((pathname = calloc(len, 1)) == NULL) {
-            fprintf(stderr, "error: failed to allocate %u bytes for pathname.\n", len);
+            fprintf(stderr,
+                    "error: failed to allocate %u bytes for pathname.\n", len);
             goto error;
         }
-        
+
         /* parse each line */
-        if (sscanf(line, "%x-%x %c%c%c%c %*x %*s %*u %s", &start, &end, &read,
-                &write, &exec, &cow, pathname) >= 6) {
-            
-				/* must have permissions to read and write */
+        if (sscanf(line, "%p-%p %c%c%c%c %*x %*s %*u %s", &start, &end, &read,
+                   &write, &exec, &cow, pathname) >= 6) {
+
+            /* must have permissions to read and write */
             if (write == 'w' && read == 'r') {
 
-	         	 /* allocate a new region structure */
+                /* allocate a new region structure */
                 if ((map = calloc(1, sizeof(region_t))) == NULL) {
-                   fprintf(stderr, "error: failed to allocate memory for region.\n");
-                   free(pathname);
-                   goto error;
+                    fprintf(stderr,
+                            "error: failed to allocate memory for region.\n");
+                    free(pathname);
+                    goto error;
                 }
 
                 /* initialise this region */
-                map->perms |= (MAP_RD | MAP_WR);    
+                map->perms |= (MAP_RD | MAP_WR);
                 map->start = start;
                 map->size = end - start;
 
-            	 /* setup other permissions */
-                if (exec == 'x') map->perms |= MAP_EX;
-                if (cow == 's') map->perms |= MAP_SH;
-                if (cow == 'p') map->perms |= MAP_PR;
-            
-            	 /* save pathname */
+                /* setup other permissions */
+                if (exec == 'x')
+                    map->perms |= MAP_EX;
+                if (cow == 's')
+                    map->perms |= MAP_SH;
+                if (cow == 'p')
+                    map->perms |= MAP_PR;
+
+                /* save pathname */
                 if (*pathname) {
-                    if ((map->pathname = realloc(pathname, strlen(pathname) + 1)) == NULL) {
+                    if ((map->pathname =
+                         realloc(pathname, strlen(pathname) + 1)) == NULL) {
                         fprintf(stderr, "error: failed to allocate memory.\n");
                         goto error;
                     }
                 } else {
                     map->pathname = NULL;
                 }
-                
-					 /* okay, add this guy to our list */
+
+                /* okay, add this guy to our list */
                 if (l_append(regions, NULL, map) == -1) {
-                    fprintf(stderr, "error: sorry, failed to add region to list.\n");
+                    fprintf(stderr,
+                            "error: sorry, failed to add region to list.\n");
                     goto error;
-                }           
+                }
             } else {
                 free(pathname);
             }
@@ -93,13 +100,13 @@ int readmaps(pid_t target, list_t *regions)
         }
     }
 
-    /* release memory allocated by getline() */
+    /* release memory allocated */
     free(line);
     fclose(maps);
 
     return 0;
 
-error:
+  error:
     free(line);
     fclose(maps);
 

@@ -1,4 +1,4 @@
-.TH scanmem 1 "January 22, 2006" "version 0.04"
+.TH scanmem 1 "March 03, 2007" "version 0.05"
 .SH NAME
 scanmem - locate and modify a variable in an executing process.
 
@@ -100,6 +100,21 @@ As for
 .B >
 but indicates that the target variable has decreased since the last scan.
 
+.B =
+As for
+.B >
+but indicates that the target variable has not changed since last scan.
+
+.B snapshot
+Save a snapshot of existing program state, for use with
+.B >
+,
+.B <
+,
+and 
+.B =
+, although other comands can still be used.
+
 .B cont
 .I [sec]
 
@@ -143,15 +158,11 @@ Delete match
 command.
 
 .B pid
+.I [new-pid]
 
-Print out the process id of the current target program.
-
-.B width
-.I [n]
-
-Change the width in bits of the target variable to
-.I n
-, which must be a multiple of CHAR_BIT (experimental).
+Print out the process id of the current target program, or change the target to
+.I new-pid
+, which will reset existing regions and matches.
 
 .B lregions
 
@@ -302,6 +313,11 @@ will change all known matches.
 The first scan can be very slow on large programs, this is not a problem for subsequent 
 scans as huge portions of the address space are usually eliminated. This could be improved
 in future, perhaps by assuming all integers are aligned by default. Suggestions welcome.
+
+The
+.B snapshot
+command uses memory inefficiently, and should probably not be used on large programs.
+In future this will use a more intelligent format.
 
 .SH AUTHOR
 Tavis Ormandy <taviso@sdf.lonestar.org>
