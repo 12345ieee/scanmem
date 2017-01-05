@@ -1,7 +1,6 @@
 /*
 *
-* $Author: taviso $
-* $Revision: 1.10 $
+* $Id: scanmem.h,v 1.15 2007-04-08 23:09:18+01 taviso Exp $
 *
 */
 
@@ -9,26 +8,43 @@
 #define _SCANMEM_INC            /* include guard */
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include "list.h"
+#include <sys/types.h>          /*lint !e537 */
 
-#define DEBUG
+#include "list.h"
+#include "value.h"
+
+/* list of functions where i dont want to be warned about ignored return code */
+/*lint -esym(534,detach,printversion,strftime,fflush) */
 
 #ifndef VERSIONSTRING
 # define VERSIONSTRING "(unknown)"
 #endif
 
-#ifdef DEBUG
+#ifndef NDEBUG
 # define eprintf(x, y...) fprintf(stderr, x, ## y)
 #else
 # define eprintf(x, y...)
 #endif
 
 #ifdef _lint
-# define snprintf(a, b, c...) sprintf(a, ## c)
+/*lint -save -e652 -e683 -e547 */
+# define snprintf(a, b, c...) (((void) b), sprintf(a, ## c))
+# define strtoll(a,b,c) ((long long) strtol(a,b,c))
+# define WIFSTOPPED
+# define sighandler_t _sigfunc_t
+/*lint -restore */
+/*lint -save -esym(526,getline,strdupa,strdup,strndupa,strtoll) */
+ssize_t getline(char **lineptr, size_t * n, FILE * stream);
+char *strndupa(const char *s, size_t n);
+char *strdupa(const char *s);
+char *strdup(const char *s);
+/*lint -restore */
 #endif
-
+#ifdef __CSURF__
+# define waitpid(x,y,z) ((*(y)=0),-rand())
+# define WIFSTOPPED(x) (rand())
+# define ptrace(w,x,y,z) ((errno=rand()),(ptrace(w,x,y,z)))
+#endif
 #ifndef MIN
 # define MIN(a,b) ((a) < (b) ? (a) : (b))
 #endif
@@ -41,88 +57,42 @@
 
 /* a region obtained from /proc/pid/maps, these are searched for matches */
 typedef struct {
-    void *start;                /* start address */
+    char *start;                /* start address */
     size_t size;                /* size */
-    char *pathname;             /* first 1024 characters */
+    char *pathname;             /* associated file */
     unsigned char perms;        /* map permissions */
 } region_t;
 
-/* each dword read from the target is checked if they're numeric value matches in multiple types */
-typedef union {
-    uint8_t u8;
-    uint16_t u16;
-    uint32_t u32;
-} types_t;
-
-typedef struct __attribute__ ((packed)) {
-    types_t value;
-    struct __attribute__ ((packed)) {
-        unsigned seen:1;
-        unsigned u8:1;
-        unsigned u16:1;
-        unsigned u32:1;
-    } flags;
-} value_t;
+/* global settings */
+typedef struct {
+    unsigned exit:1;
+    pid_t target;
+    list_t *matches;
+    list_t *regions;
+    list_t *commands;
+} globals_t;
 
 /* this structure represents one known match, its address and type. */
-typedef struct __attribute__ ((packed)) {
+typedef struct {
     void *address;              /* address of variable */
     region_t *region;           /* region it belongs to */
     value_t lvalue;             /* last seen value */
 } match_t;
 
 
-#define TYPESTR(s) ((s.flags.u32) ? "uint32" : \
-        (s.flags.u16) ? "uint16" : \
-                (s.flags.u8) ? "uint8" : \
-			       	"no match")
+/* global settings */
+extern globals_t globals;
 
-#define TYPEVAL(s) ((s.flags.u32) ? s.value.u32 : \
-        (s.flags.u16) ? s.value.u16 : \
-            (s.flags.u8) ? s.value.u8 : \
-                    0U)
-
-#define TYPEFMT(s) ((s.flags.u32) ? "%u" : \
-        (s.flags.u16) ? "%hu" : \
-                (s.flags.u8) ? "%hhu" : \
-                    "%u")
-
-int readmaps(pid_t target, list_t * regions);
-int detach(pid_t target);
-int setaddr(pid_t target, void *addr, value_t * to);
-
-typedef enum { MATCHEXACT, MATCHINCREMENT, MATCHDECREMENT,
-        MATCHEQUAL } matchtype_t;
-
-int checkmatches(list_t * matches, pid_t target, value_t value,
-                 matchtype_t type);
-int candidates(list_t * matches, const list_t * regions, pid_t target,
-               value_t value);
-int snapshot(list_t * matches, const list_t * regions, pid_t target);
-
-typedef enum {
-    COMMAND_ERROR = -1,
-    COMMAND_EXACT,
-    COMMAND_INCREMENT,
-    COMMAND_DECREMENT,
-    COMMAND_EQUAL,
-    COMMAND_CONTINUOUS,
-    COMMAND_SET,
-    COMMAND_EXIT,
-    COMMAND_HELP,
-    COMMAND_VERSION,
-    COMMAND_DELETE,
-    COMMAND_LIST,
-    COMMAND_PID,
-    COMMAND_LISTREGIONS,
-    COMMAND_DELREGIONS,
-    COMMAND_RESET,
-    COMMAND_SNAPSHOT
-} selection_t;
-
-selection_t getcommand(unsigned value, unsigned *operand);
-
-void printinthelp(void);
-void printversion(void);
-
+bool readmaps(pid_t target, list_t * regions);
+bool detach(pid_t target);
+bool setaddr(pid_t target, void *addr, const value_t * to);
+bool checkmatches(list_t * matches, pid_t target, value_t value,
+                  matchtype_t type);
+bool candidates(list_t * matches, const list_t * regions, pid_t target,
+                value_t value);
+bool snapshot(list_t * matches, const list_t * regions, pid_t target);
+bool peekdata(pid_t pid, void *addr, value_t * result);
+bool attach(pid_t target);
+bool getcommand(globals_t * vars, char **line);
+int printversion(FILE * fp);
 #endif

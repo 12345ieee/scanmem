@@ -1,19 +1,19 @@
-.TH scanmem 1 "March 03, 2007" "version 0.05"
+.TH scanmem 1 "April 08, 2007" "version 0.06"
 .SH NAME
 scanmem - locate and modify a variable in an executing process.
 
 .SH SYNOPSIS
 .B scanmem
-.RB \-\-pid 
-.IR          target-program-pid
 .RB [\-\-version]
-.RB [\-\-help]
+.RB [\-\-help] 
+.IR target-program-pid
+
 
 .SH DESCRIPTION
 .B scanmem
 is an interactive debugging utility that can be used to isolate the address of a variable
-in an executing process by successively scanning the process' address space looking for matching
-values. By informing
+in an executing process by successively scanning the process' address space looking for
+matching values. By informing
 .B scanmem
 how the value of the variable changes over time, it can determine the actual location (or
 locations) of the variable by successively eliminating non-matches.
@@ -22,15 +22,15 @@ determines where to look by searching for mappings with
 .I read
 /
 .I write
-permission, theses are referred to as regions. Users can eliminate regions they believe are
+permission, these are referred to as regions. Users can eliminate regions they believe are
 likely unrelated to the target variable (for example, located in a shared library unrelated to
 the variable in question), this will improve the speed of the scan, which can initially be quite
-long in large programs.
+slow in large programs.
 
 Once a variable has been found,
 .B scanmem
-can modify the variable to a user specified value, either once, or continually over a period of
-time.
+can monitor the variable, or change it to a user specified value, either once, or continually
+over a period of time.
 
 .B scanmem
 works similarly to the "
@@ -41,20 +41,19 @@ works similarly to the "
 
 .SH USAGE
 .B scanmem
-must be invoked with the 
-.IR --pid
-argument, followed by the process id of the program you wish to debug. Once started, scanmem accepts
-interactive commands. These are described below, entering
+should be invoked with the process id of the program you wish to debug as an argument. Once
+started, scanmem accepts interactive commands. These are described below, however entering
 .IR help
 at the
 .B >
-prompt will list the available commands and a synopsis of its usage.
+prompt will allow you to access
+.B scanmem's
+online documentation.
 
-.B "\-\-pid n"
-
-Specify the process id to be debugged. The pid can be specified in decimal, hexadecimal, or octal
-using the standard C language notation (leading 0x for hexadecimal, leading 0 for octal, anything else
-is assumed to be decimal).
+The 
+.IR target-program-pid
+can be specified in decimal, hexadecimal, or octal using the standard C language notation
+(leading 0x for hexadecimal, leading 0 for octal, anything else is assumed to be decimal).
 
 .B "\-\-version"
 
@@ -83,7 +82,37 @@ that the current value of the target variable is exactly
 .B n.
 .B scanmem
 will begin a search of the entire address space, or the existsing known matches (if any),
-eliminating any variable that does not have this variable.
+eliminating any variable that does not have this value.
+
+.B set 
+.I [match-id][,match-id,...]=]value[/delay] [...]
+
+Set the value 
+.I value
+into the match numbers
+.I match-id
+, or if just
+.I value
+is specified, all known matches.
+.I value
+can be specified in standard C language notation. All known matches, along with their
+match-id's can be displayed using the
+.B list
+command. Multiple
+.I match-id's
+can be specified, separated with commas and terminated with an 
+.I =
+sign. To set a value continually,  suffix the command with
+.I /
+followed by the number of seconds wo wait between sets. You can interrupt the set command
+with ^C to return to the
+.B scanmem
+prompt. This can be used to sustain the value of a variable which decreases overtime, for
+example a timer that is decremented every second can be set to 100 every 10 seconds to
+prevent some property from ever changing.
+
+This command is used to change the value of the variable(s) once found by elimination.
+Please note, some applications will store values in multiple locations.
 
 .B >
 
@@ -101,11 +130,13 @@ As for
 but indicates that the target variable has decreased since the last scan.
 
 .B =
+
 As for
 .B >
 but indicates that the target variable has not changed since last scan.
 
 .B snapshot
+
 Save a snapshot of existing program state, for use with
 .B >
 ,
@@ -113,40 +144,38 @@ Save a snapshot of existing program state, for use with
 ,
 and 
 .B =
-, although other comands can still be used.
-
-.B cont
-.I [sec]
-
-If 
-.I sec
-is not specified or 0, disable continuous mode. Otherwise, enable continuous mode with an interval
-of
-.I sec
-seconds. Continuous configures the
-.B set
-command to continually modify the target variable until interrupted. This can be used to sustain
-the value of a variable which decreases overtime, for example a timer that is decremented every
-second can be set to 100 every 10 seconds to prevent some property from ever changing.
-
-.B set 
-.I [val]
-
-Every match currently known (these can be displayed with the
-.B list
-command, or modified with the
-.B delete
-command) should be set to
-.I val
-, or 0 if not specified. This is used to change the value of the variable(s) once found by elimination.
-Please note, some applications will store values in multiple locations.
+, although other commands can still be used.
 
 .B list
 
 List all the possible candidates currently known, including their address, last known value and
 pathname. The value in the first column is the match id, and can be used in conjunction with the
 .B delete
-command to eliminate matches.
+command to eliminate matches. The flags displayed indicate what is currently known about the
+variable at that location, a capital letter indicates the property is set, lowercase indicates
+the property is not set.
+
+.IP
+.TS
+allbox tab(#);
+cb l
+cb l
+cb l
+cb l
+cb l
+cb l
+cb l
+cb l.
+C#The value could be a char.
+S#The value could be a short.
+I#The value could be an int.
+L#The value could be a long.
+F#The value could be a float.
+N#The value is known to be signed.
+Z#This flag is not currently used.
+.TE
+.LP
+.LP 
 
 .B delete
 .I [match-id]
@@ -155,7 +184,20 @@ Delete match
 .I match-id
 , which can be found from the output of the
 .B list
-command.
+command. To delete all matches, see the
+.B reset
+command, or to delete all matches associated with a particular library, see the
+.B dregion
+command, which also removes any associated matches. Pleae note that match-ids may be
+recalculated after matches are removed or added.
+
+.B watch
+.I [match-id]
+
+Monitor the value of
+.I match-id
+, and print its value as it changes. Every change is printed along with a timestamp, you can
+interrupt this command with ^C to stop monitoring. 
 
 .B pid
 .I [new-pid]
@@ -189,6 +231,13 @@ command.
 
 Forget all known matches and start again.
 
+.B shell
+.I [shell-command]
+
+Execute
+.I shell-command
+using /bin/sh, then return.
+
 .B version
 
 Print the version of 
@@ -207,7 +256,7 @@ Detach from the target program and exit immediately.
 Cheat at nethack, on systems where nethack is not installed sgid.
 
 .nf
-$ scanmem --pid `pidof nethack`
+$ scanmem `pidof nethack`
 info: attaching to pid 13070.
 info: maps file located at /proc/13070/maps opened.
 info: 17 suitable regions found.
@@ -242,16 +291,16 @@ info: searching 0x081d4000 - 0x0820a000...........ok
 info: searching 0x081b7000 - 0x081d4000...........ok
 info: we currently have 16 matches.
 16> list
-[00] 0x081c1f34 {        91} (/usr/share/games/nethack/nethack)
-[01] 0x081c1780 {        91} (/usr/share/games/nethack/nethack)
-[02] 0x081be436 {        91} (/usr/share/games/nethack/nethack)
-[03] 0x081eeffc {        91} (unassociated, typically .bss)
-[04] 0x081ee0c0 {        91} (unassociated, typically .bss)
-[05] 0x081eddb8 {        91} (unassociated, typically .bss)
-[06] 0x081d6d88 {        91} (unassociated, typically .bss)
-[07] 0x4001fcd3 {        91} (/lib/libnss_compat-2.3.5.so)
-[08] 0x40029fe3 {        91} (/lib/libnss_nis-2.3.5.so)
-[09] 0x40029f8b {        91} (/lib/libnss_nis-2.3.5.so)
+[ 0] 0x081c1f34 {        91} (/usr/share/games/nethack/nethack)
+[ 1] 0x081c1780 {        91} (/usr/share/games/nethack/nethack)
+[ 2] 0x081be436 {        91} (/usr/share/games/nethack/nethack)
+[ 3] 0x081eeffc {        91} (unassociated, typically .bss)
+[ 4] 0x081ee0c0 {        91} (unassociated, typically .bss)
+[ 5] 0x081eddb8 {        91} (unassociated, typically .bss)
+[ 6] 0x081d6d88 {        91} (unassociated, typically .bss)
+[ 7] 0x4001fcd3 {        91} (/lib/libnss_compat-2.3.5.so)
+[ 8] 0x40029fe3 {        91} (/lib/libnss_nis-2.3.5.so)
+[ 9] 0x40029f8b {        91} (/lib/libnss_nis-2.3.5.so)
 [10] 0x40029efb {        91} (/lib/libnss_nis-2.3.5.so)
 [11] 0x40029bff {        91} (/lib/libnss_nis-2.3.5.so)
 [12] 0x401d18d3 {        91} (unassociated, typically .bss)
@@ -277,7 +326,7 @@ info: we currently have 1 matches.
 info: match identified, use "set" to modify value.
 info: enter "help" for other commands.
 1> list
-[00] 0x081d6d88 {       112} (unassociated, typically .bss)
+[ 0] 0x081d6d88 {       112} (unassociated, typically .bss)
 .fi
 
 Only one of the 16 original candidates now have the value 112, so this must be where the
@@ -330,3 +379,4 @@ All bug reports, suggestions or feedback welcome.
 gdb(1)
 ptrace(2)
 nethack(6)
+pidof(8)

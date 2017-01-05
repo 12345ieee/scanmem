@@ -1,7 +1,6 @@
 /*
 *
-* $Author: taviso $
-* $Revision: 1.7 $
+* $Id: maps.c,v 1.11 2007-04-08 23:09:18+01 taviso Exp $
 *
 */
 
@@ -15,14 +14,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <alloca.h>
+#include <stdbool.h>
 
 #include "scanmem.h"
 
-int readmaps(pid_t target, list_t * regions)
+bool readmaps(pid_t target, list_t * regions)
 {
     FILE *maps;
     char name[22], *line = NULL;
     size_t len = 0;
+
+    /* check if target is valid */
+    if (target == 0)
+        return false;
 
     /* construct the maps filename */
     snprintf(name, sizeof(name), "/proc/%u/maps", target);
@@ -30,14 +34,14 @@ int readmaps(pid_t target, list_t * regions)
     /* attempt to open the maps file */
     if ((maps = fopen(name, "r")) == NULL) {
         fprintf(stderr, "error: failed to open maps file %s.\n", name);
-        return -1;
+        return false;
     }
 
     eprintf("info: maps file located at %s opened.\n", name);
 
     /* read every line of the maps file */
     while (getline(&line, &len, maps) != -1) {
-        void *start, *end;
+        char *start, *end;
         region_t *map = NULL;
         char read, write, exec, cow, *pathname;
 
@@ -51,8 +55,8 @@ int readmaps(pid_t target, list_t * regions)
         if (sscanf(line, "%p-%p %c%c%c%c %*x %*s %*u %s", &start, &end, &read,
                    &write, &exec, &cow, pathname) >= 6) {
 
-            /* must have permissions to read and write */
-            if (write == 'w' && read == 'r') {
+            /* must have permissions to read and write, and be non-zero size */
+            if (write == 'w' && read == 'r' && (end - start) > 0) {
 
                 /* allocate a new region structure */
                 if ((map = calloc(1, sizeof(region_t))) == NULL) {
@@ -65,7 +69,7 @@ int readmaps(pid_t target, list_t * regions)
                 /* initialise this region */
                 map->perms |= (MAP_RD | MAP_WR);
                 map->start = start;
-                map->size = end - start;
+                map->size = (unsigned) (end - start);
 
                 /* setup other permissions */
                 if (exec == 'x')
@@ -77,14 +81,23 @@ int readmaps(pid_t target, list_t * regions)
 
                 /* save pathname */
                 if (*pathname) {
-                    if ((map->pathname =
-                         realloc(pathname, strlen(pathname) + 1)) == NULL) {
+                    /* the pathname is concatenated with the structure so that l_destroy() works */
+                    if ((map =
+                         realloc(map,
+                                 sizeof(*map) + strlen(pathname) + 1)) ==
+                        NULL) {
                         fprintf(stderr, "error: failed to allocate memory.\n");
                         goto error;
                     }
+
+                    map->pathname = (char *) map + sizeof(*map);
+                    strcpy(map->pathname, pathname);
                 } else {
                     map->pathname = NULL;
                 }
+
+                /* pathname saved into list now */
+                free(pathname);
 
                 /* okay, add this guy to our list */
                 if (l_append(regions, NULL, map) == -1) {
@@ -104,11 +117,11 @@ int readmaps(pid_t target, list_t * regions)
     free(line);
     fclose(maps);
 
-    return 0;
+    return true;
 
   error:
     free(line);
     fclose(maps);
 
-    return -1;
+    return false;
 }

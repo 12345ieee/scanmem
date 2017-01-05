@@ -1,7 +1,7 @@
 /*
 *
-* $Author: taviso $
-* $Revision: 1.8 $
+* $Id: menu.c,v 1.12 2007-04-08 23:09:18+01 taviso Exp $
+*
 */
 
 #ifndef _GNU_SOURCE
@@ -11,139 +11,116 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include <string.h>
+#include <stdbool.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "list.h"
 #include "scanmem.h"
+#include "commands.h"
 
-selection_t getcommand(unsigned info, unsigned *operand)
+static char *commandgenerator(const char *text, int state);
+static char **commandcompletion(const char *text, int start, int end);
+
+/*
+ * getcommand() reads in a command using readline, and places a pointer to the
+ * read string into *line, _which must be free'd by caller_.
+ * returns true on success, or false on error.
+ */
+
+bool getcommand(globals_t * vars, char **line)
 {
-    static selection_t last = COMMAND_ERROR;
-    char *command = NULL, *end = NULL;
+    char prompt[64];
+
+    assert(vars != NULL);
+    assert(vars->matches != NULL);
+
+    snprintf(prompt, sizeof(prompt), "%u> ", vars->matches->size);
+
+    rl_readline_name = "scanmem";
+    rl_attempted_completion_function = commandcompletion;
 
     while (true) {
-        unsigned i;
-        size_t len;
-        char prompt[64];
-
-        snprintf(prompt, sizeof(prompt), "%u> ", info);
-
-        if ((command = readline(prompt)) == NULL) {
+        /* read in the next command using readline library */
+        if ((*line = readline(prompt)) == NULL) {
             /* EOF */
-            free(command);
-            fprintf(stderr, "exit\n");
-            return last = COMMAND_EXIT;
-        }
-
-        len = strlen(command);
-
-        /* repeat last command */
-        if (*command == '\n' || *command == '\0') {
-            free(command);
-            return last;
-        }
-
-        /* record this line to readline history */
-        add_history(command);
-
-        /* attempt to parse command as number */
-        i = strtoul(command, &end, 0);
-
-        /* the whole command is a valid number */
-        if (*end == '\n' || *end == '\0') {
-            *operand = i;
-            last = COMMAND_EXACT;
-        } else if (strncmp(command, ">", 1) == 0) {
-            last = COMMAND_INCREMENT;
-        } else if (strncmp(command, "<", 1) == 0) {
-            last = COMMAND_DECREMENT;
-        } else if (strncmp(command, "=", 1) == 0) {
-            last = COMMAND_EQUAL;
-        } else if (strncmp(command, "cont", 4) == 0) {
-            /* check for seconds argument */
-            if (len > 5) {
-                *operand = strtoul(command + 5, NULL, 0);
-            } else {
-                *operand = 0;
-            }
-            last = COMMAND_CONTINUOUS;
-        } else if (strncmp(command, "set", 3) == 0) {
-            if (len > 4) {
-                *operand = strtoul(command + 4, NULL, 0);
-            } else {
-                *operand = ~0;
-            }
-            last = COMMAND_SET;
-        } else if (strncmp(command, "exit", 4) == 0) {
-            last = COMMAND_EXIT;
-        } else if (strncmp(command, "version", 7) == 0) {
-            last = COMMAND_VERSION;
-        } else if (strncmp(command, "help", 4) == 0) {
-            last = COMMAND_HELP;
-        } else if (strncmp(command, "list", 4) == 0) {
-            last = COMMAND_LIST;
-        } else if (strncmp(command, "lregions", 8) == 0) {
-            last = COMMAND_LISTREGIONS;
-        } else if (strncmp(command, "dregion", 7) == 0) {
-            if (len > 8) {
-                *operand = strtoul(command + 7, NULL, 0);
-            } else {
-                *operand = ~0;
-            }
-            last = COMMAND_DELREGIONS;
-        } else if (strncmp(command, "delete", 6) == 0) {
-            if (len > 8) {
-
-                *operand = strtoul(command + 7, NULL, 0);
-                last = COMMAND_DELETE;
-            } else {
+            if ((*line = strdup("__eof")) == NULL) {
                 fprintf(stderr,
-                        "warn: operand required for delete command, use \"list\".\n");
-                last = COMMAND_ERROR;
+                        "error: sorry, there was a memory allocation error.\n");
+                return false;
             }
-        } else if (strncmp(command, "pid", 3) == 0) {
-            if (len > 4) {
-                *operand = strtoul(command + 4, NULL, 0);
-            } else {
-                *operand = 0;
-            }
-            last = COMMAND_PID;
-        } else if (strncmp(command, "reset", 5) == 0) {
-            last = COMMAND_RESET;
-        } else if (strncmp(command, "snapshot", 8) == 0) {
-            last = COMMAND_SNAPSHOT;
-        } else {
-            fprintf(stderr, "warn: unable to parse command `%s`.\n", command);
-            continue;
         }
 
-        free(command);
-        return last;
+        if (strlen(*line)) {
+            break;
+        }
+
+        free(*line);
     }
+
+    /* record this line to readline history */
+    add_history(*line);
+    return true;
 }
 
-void printinthelp(void)
+/* custom completor program for readline */
+static char **commandcompletion(const char *text, int start, int end)
 {
-    printversion();
+    (void) end;
 
-    fprintf(stderr,
-            "\n"
-            "n\t- (where n is any number), scan for variables with this value.\n"
-            ">\t- match all variables that have increased since last scan.\n"
-            "<\t- match all variables that have decreased since last scan.\n"
-            "=\t- match all variables that are the same as the last seen value.\n"
-            "snapshot- take a snapshot of the current state (slow, lots of memory).\n"
-            "cont n\t- inject value continuously every n seconds, use 0 to disable.\n"
-            "set n\t- set all known matches to n (default 0).\n"
-            "list\t- list all known matches.\n"
-            "delete n- delete nth known match (as printed by \"list\").\n"
-            "pid\t- change pid of target.\n"
-            "lregions- list all the regions known about.\n"
-            "dregion\t- delete the nth region.\n"
-            "reset\t- forget all matches.\n"
-            "version\t- print the current version.\n"
-            "help\t- print this screen.\n" "exit\t- exit scanmem.\n");
-    return;
+    /* never use default completer (filenames), even if I dont generate any matches */
+    rl_attempted_completion_over = 1;
+
+    /* only complete on the first word, the command */
+    return start ? NULL : rl_completion_matches(text, commandgenerator);
+}
+
+/* command generator for readline completion */
+static char *commandgenerator(const char *text, int state)
+{
+    static unsigned index = 0;
+    unsigned i;
+    size_t len;
+    element_t *np;
+
+    /* reset generator if state == 0, otherwise continue from last time */
+    index = state ? index : 0;
+
+    np = globals.commands ? globals.commands->head : NULL;
+
+    len = strlen(text);
+
+    /* skip to the last node checked */
+    for (i = 0; np && i < index; i++)
+        np = np->next;
+
+    /* traverse the commands list, checking for matches */
+    while (np) {
+        command_t *command = np->data;
+
+        np = np->next;
+
+        /* record progress */
+        index++;
+
+        /* if shortdoc is NULL, this is not supposed ot be user visible */
+        if (command == NULL || command->command == NULL
+            || command->shortdoc == NULL)
+            continue;
+
+        /* check if we have a match */
+        if (strncmp(text, command->command, len) == 0) {
+            return strdup(command->command);
+        }
+    }
+
+    return NULL;
+}
+
+int printversion(FILE * fp)
+{
+    return fprintf(fp, "scanmem %s - Tavis Ormandy <taviso@sdf.lonestar.org>\n",
+                   VERSIONSTRING);
 }

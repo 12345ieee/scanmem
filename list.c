@@ -2,8 +2,7 @@
 *
 * A simple linked list implementation.
 *
-* $Author: taviso $
-* $Revision: 1.4 $
+* $Id: list.c,v 1.8 2007-04-08 23:09:18+01 taviso Exp $
 *
 */
 
@@ -22,6 +21,9 @@ void l_destroy(list_t * list)
 {
     void *data;
 
+    if (list == NULL)
+        return;
+
     /* remove every element */
     while (list->size) {
         l_remove(list, NULL, &data);
@@ -30,6 +32,8 @@ void l_destroy(list_t * list)
 
     free(list);
 }
+
+/*lint -e429 take custody of pointer data */
 
 /* add a new element to the list */
 int l_append(list_t * list, element_t * element, void *data)
@@ -78,6 +82,7 @@ void l_remove(list_t * list, element_t * element, void **data)
         }
 
         o = list->head;
+
         list->head = o->next;
 
         if (list->size == 1) {
@@ -89,6 +94,7 @@ void l_remove(list_t * list, element_t * element, void **data)
         }
 
         o = element->next;
+
 
         if ((element->next = element->next->next) == NULL) {
             list->tail = element;

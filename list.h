@@ -1,8 +1,6 @@
 /*
 *
-* $Author: taviso $
-* $Revision: 1.5 $
-*
+* $Id: list.h,v 1.6 2007-04-08 17:44:05+01 taviso Exp $
 * A very simple linked list implementation.
 *
 */

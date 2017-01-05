@@ -1,14 +1,16 @@
 #
-# $Id: Makefile,v 1.8 2007-03-03 13:25:56+00 taviso Exp $
+# $Id: Makefile,v 1.17 2007-04-09 00:03:49+01 taviso Exp $
 #
 
-SOURCES=main.c maps.c ptrace.c list.c menu.c
-INCLUDES=scanmem.h list.h
-DISTFILES=$(SOURCES) $(INCLUDES) Makefile scanmem.1 ChangeLog README TODO
-VERSION=0.05
+# indent -kr -l80 -nut *.c *.h
+SOURCES=main.c maps.c ptrace.c list.c menu.c commands.c handlers.c value.c
+INCLUDES=scanmem.h list.h value.h interrupt.h handlers.h commands.h
+DISTFILES=$(SOURCES) $(INCLUDES) Makefile scanmem.1 ChangeLog README TODO COPYING
+VERSION=0.06
 CC=gcc
-CFLAGS=-W -Wall -O2 -DVERSIONSTRING="\"v$(VERSION)\""
-LDFLAGS=-lreadline -lm
+CFLAGS=-W -Wall -O2 -g
+CPPFLAGS=-DVERSIONSTRING="\"v$(VERSION)\""
+LDFLAGS=-lreadline
 PREFIX=/usr/local
 
 all: scanmem
@@ -27,5 +29,5 @@ install: scanmem
 dist: clean
 	mkdir scanmem-$(VERSION)
 	cp $(DISTFILES) scanmem-$(VERSION)
-	tar -zcvf scanmem-$(VERSION).tar.gz scanmem-$(VERSION)
+	tar --mode=u+wr,go+r -zcvf scanmem-$(VERSION).tar.gz scanmem-$(VERSION)
 	@ls -l scanmem-$(VERSION).tar.gz

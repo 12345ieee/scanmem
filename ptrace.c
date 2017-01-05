@@ -1,21 +1,18 @@
 /*
 *
-* $Author: taviso $
-* $Revision: 1.10 $
+* $Id: ptrace.c,v 1.16 2007-04-08 23:09:18+01 taviso Exp $
 */
 
 #include <sys/ptrace.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <assert.h>
 #include <errno.h>
-#include <math.h>
+#include <stdbool.h>
 
 #ifdef __GNUC__
 # define EXPECT(x,y) __builtin_expect(x, y)
@@ -23,81 +20,91 @@
 # define EXPECT(x,y) x
 #endif
 
+#include "value.h"
 #include "scanmem.h"
 
-static int attach(pid_t target);
-static bool peekdata(pid_t pid, void *addr, value_t * result);
-static bool valuecmp(value_t * required, value_t * candidate, matchtype_t type);
-
-/* ptrace peek buffer */
+/* ptrace peek buffer, used by peekdata() */
 static struct {
     union {
         signed long peeks[2];   /* read from ptrace() */
         unsigned char bytes[sizeof(long) * 2];  /* used to retrieve unaligned hits */
     } cache;
     unsigned size;              /* number of entries (in longs) */
-    void *base;                 /* base address of cached region */
+    char *base;                 /* base address of cached region */
     pid_t pid;                  /* what pid this applies to */
 } peekbuf;
 
 
-int attach(pid_t target)
+bool attach(pid_t target)
 {
     int status;
 
     /* attach, to the target application, which should cause a SIGSTOP */
-    if (ptrace(PTRACE_ATTACH, target, NULL, NULL) == -1) {
-        fprintf(stderr, "error: failed to attach to %d.\n", target);
-        return -1;
+    if (ptrace(PTRACE_ATTACH, target, NULL, NULL) == -1L) {
+        fprintf(stderr, "error: failed to attach to %d, %s\n", target,
+                strerror(errno));
+        return false;
     }
 
     /* wait for the SIGSTOP to take place. */
-    if (waitpid(target, &status, 0) == -1 || !WIFSTOPPED(status)) {     /*lint !e10 */
+    if (waitpid(target, &status, 0) == -1 || !WIFSTOPPED(status)) {
         fprintf(stderr,
                 "error: there was an error waiting for the target to stop.\n");
-        return -1;
+        fprintf(stdout, "info: %s\n", strerror(errno));
+        return false;
     }
 
     /* flush the peek buffer */
     memset(&peekbuf, 0x00, sizeof(peekbuf));
-    
+
     /* everything looks okay */
-    return 0;
+    return true;
 
 }
 
-int detach(pid_t target)
+bool detach(pid_t target)
 {
-    return ptrace(PTRACE_DETACH, target, NULL, 0);
+    return ptrace(PTRACE_DETACH, target, NULL, 0) == 0;
 }
 
-/* cache overlapping ptrace reads to improve performance */
+/*
+ * peekdata - caches overlapping ptrace reads to improve performance.
+ * 
+ * This routine could just call ptrace(PEEKDATA), but using a cache reduces
+ * the number of peeks required by 70% when reading large chunks of
+ * consecutive addreses.
+ */
+
 bool peekdata(pid_t pid, void *addr, value_t * result)
 {
+    char *reqaddr = addr;
 
     assert(peekbuf.size < 3);
     assert(result != NULL);
 
-    /* check if we have a cache hit */
-    if (pid == peekbuf.pid && addr >= peekbuf.base
-        && (unsigned) (addr + sizeof(unsigned) - peekbuf.base) <=
-        sizeof(unsigned) * peekbuf.size) {
+    memset(result, 0x00, sizeof(value_t));
 
-        result->value.u32 =
-            *(unsigned *) &peekbuf.cache.bytes[addr - peekbuf.base];
+    valnowidth(result);
+
+    /* check if we have a cache hit */
+    if (pid == peekbuf.pid && reqaddr >= peekbuf.base
+        && (unsigned) (reqaddr + sizeof(long) - peekbuf.base) <=
+        sizeof(long) * peekbuf.size) {
+
+        result->value.tslong = *(long *) &peekbuf.cache.bytes[reqaddr - peekbuf.base];  /*lint !e826 */
         return true;
-    } else if (pid == peekbuf.pid && addr >= peekbuf.base
-               && (unsigned) (addr - peekbuf.base) <
-               sizeof(unsigned) * peekbuf.size) {
+    } else if (pid == peekbuf.pid && reqaddr >= peekbuf.base
+               && (unsigned) (reqaddr - peekbuf.base) <
+               sizeof(long) * peekbuf.size) {
 
         assert(peekbuf.size != 0);
 
-        /* partial hit, remove old entry */
+        /* partial hit, we have some of the data but not all, so remove old entry */
 
         if (EXPECT(peekbuf.size == 2, true)) {
             peekbuf.cache.peeks[0] = peekbuf.cache.peeks[1];
             peekbuf.size = 1;
-            peekbuf.base += sizeof(unsigned);
+            peekbuf.base += sizeof(long);
         }
     } else {
 
@@ -112,10 +119,11 @@ bool peekdata(pid_t pid, void *addr, value_t * result)
 
     peekbuf.cache.peeks[peekbuf.size] =
         ptrace(PTRACE_PEEKDATA, pid,
-               peekbuf.base + sizeof(unsigned) * peekbuf.size, NULL);
+               peekbuf.base + sizeof(long) * peekbuf.size, NULL);
 
     /* check if ptrace() succeeded */
-    if (peekbuf.cache.peeks[peekbuf.size] == -1L && errno != 0) {
+    if (EXPECT(peekbuf.cache.peeks[peekbuf.size] == -1L && errno != 0, false)) {
+        /* i wont print a message here, would be very noisy if a region is unmapped */
         return false;
     }
 
@@ -123,21 +131,21 @@ bool peekdata(pid_t pid, void *addr, value_t * result)
     peekbuf.size++;
 
     /* return result to caller */
-    result->value.u32 = *(unsigned *) &peekbuf.cache.bytes[addr - peekbuf.base];
+    result->value.tslong = *(long *) &peekbuf.cache.bytes[reqaddr - peekbuf.base];      /*lint !e826 */
 
     /* success */
     return true;
 }
 
-int snapshot(list_t * matches, const list_t * regions, pid_t target)
+bool snapshot(list_t * matches, const list_t * regions, pid_t target)
 {
     unsigned regnum = 0;
     element_t *n = regions->head;
     region_t *r;
 
     /* stop and attach to the target */
-    if (attach(target) == -1)
-        return -1;
+    if (attach(target) == false)
+        return false;
 
     /* make sure we have some regions to search */
     if (regions->size == 0) {
@@ -155,19 +163,18 @@ int snapshot(list_t * matches, const list_t * regions, pid_t target)
         r = n->data;
 
         /* print a progress meter so user knows we havnt crashed */
-        fprintf(stderr, "info: %02u/%02u saving %p - %p.", ++regnum,
+        fprintf(stderr, "info: %02u/%02u saving %10p - %10p.", ++regnum,
                 regions->size, r->start, r->start + r->size);
-        fflush(stderr);         /*lint !e534 */
+        fflush(stderr);
 
         /* for every offset, check if we have a match */
         for (offset = 0; offset < r->size; offset++) {
             value_t check;
             match_t *match;
 
-            memset(&check, 0x0, sizeof(check));
-
             /* if a region cant be read, skip it */
-            if (peekdata(target, r->start + offset, &check) == false) {
+            if (EXPECT
+                (peekdata(target, r->start + offset, &check) == false, false)) {
                 break;
             }
 
@@ -175,7 +182,7 @@ int snapshot(list_t * matches, const list_t * regions, pid_t target)
             if ((match = calloc(1, sizeof(match_t))) == NULL) {
                 fprintf(stderr, "error: memory allocation failed.\n");
                 (void) detach(target);
-                return -1;
+                return false;
             }
 
             match->address = r->start + offset;
@@ -185,13 +192,14 @@ int snapshot(list_t * matches, const list_t * regions, pid_t target)
             if (EXPECT(l_append(matches, NULL, match) == -1, false)) {
                 fprintf(stderr, "error: unable to add match to list.\n");
                 (void) detach(target);
-                return -1;
+                free(match);
+                return false;
             }
 
             /* print a simple progress meter. */
             if (EXPECT(offset % ((r->size - (r->size % 10)) / 10) == 10, false)) {
                 fprintf(stderr, ".");
-                fflush(stderr); /*lint !e534 */
+                fflush(stderr);
             }
         }
 
@@ -205,8 +213,8 @@ int snapshot(list_t * matches, const list_t * regions, pid_t target)
     return detach(target);
 }
 
-int checkmatches(list_t * matches, pid_t target, value_t value,
-                 matchtype_t type)
+bool checkmatches(list_t * matches, pid_t target, value_t value,
+                  matchtype_t type)
 {
     element_t *n, *p;
 
@@ -217,13 +225,13 @@ int checkmatches(list_t * matches, pid_t target, value_t value,
     n = matches->head;
 
     /* stop and attach to the target */
-    if (attach(target) == -1)
-        return -1;
+    if (attach(target) == false)
+        return false;
 
     /* shouldnt happen */
     if (matches->size == 0) {
         fprintf(stderr, "warn: cant check non-existant matches.\n");
-        return -1;
+        return false;
     }
 
     while (n) {
@@ -231,11 +239,9 @@ int checkmatches(list_t * matches, pid_t target, value_t value,
         value_t check;
 
         /* read value from this address */
-        if (peekdata(target, match->address, &check) == false) {
+        if (EXPECT(peekdata(target, match->address, &check) == false, false)) {
 
             /* assume this was in unmapped region, so remove */
-            fprintf(stderr, "info: peek *%p failed, probably unmapped.\n",
-                    match->address);
             l_remove(matches, p, NULL);
 
             /* confirm this isnt the head element */
@@ -243,13 +249,14 @@ int checkmatches(list_t * matches, pid_t target, value_t value,
             continue;
         }
 
-        memcpy(&check.flags, &match->lvalue.flags, sizeof(check.flags));
+        truncval(&check, &match->lvalue);
 
+        /* XXX: this sucks. */
         if (type != MATCHEXACT) {
-            memcpy(&value, &match->lvalue, sizeof(value));
+            valcpy(&value, &match->lvalue);
         }
 
-        if (valuecmp(&value, &check, type)) {
+        if (EXPECT(valuecmp(&check, type, &value, &check), false)) {
             /* still a candidate */
             match->lvalue = check;
             p = n;
@@ -269,16 +276,16 @@ int checkmatches(list_t * matches, pid_t target, value_t value,
     return detach(target);
 }
 
-int candidates(list_t * matches, const list_t * regions, pid_t target,
-               value_t value)
+bool candidates(list_t * matches, const list_t * regions, pid_t target,
+                value_t value)
 {
     unsigned regnum = 0;
     element_t *n = regions->head;
     region_t *r;
 
     /* stop and attach to the target */
-    if (attach(target) == -1)
-        return -1;
+    if (attach(target) == false)
+        return false;
 
     /* make sure we have some regions to search */
     if (regions->size == 0) {
@@ -296,15 +303,13 @@ int candidates(list_t * matches, const list_t * regions, pid_t target,
         r = n->data;
 
         /* print a progress meter so user knows we havnt crashed */
-        fprintf(stderr, "info: %02u/%02u searching %p - %p.", ++regnum,
+        fprintf(stderr, "info: %02u/%02u searching %10p - %10p.", ++regnum,
                 regions->size, r->start, r->start + r->size);
-        fflush(stderr);         /*lint !e534 */
+        fflush(stderr);
 
         /* for every offset, check if we have a match */
         for (offset = 0; offset < r->size; offset++) {
             value_t check;
-
-            memset(&check, 0x00, sizeof(check));
 
             /* if a region cant be read, skip it */
             if (peekdata(target, r->start + offset, &check) == false) {
@@ -312,14 +317,14 @@ int candidates(list_t * matches, const list_t * regions, pid_t target,
             }
 
             /* check if we have a match */
-            if (EXPECT(valuecmp(&value, &check, MATCHEXACT), false)) {
+            if (EXPECT(valuecmp(&value, MATCHEQUAL, &check, &check), false)) {
                 match_t *match;
 
                 /* save this new location */
                 if ((match = calloc(1, sizeof(match_t))) == NULL) {
                     fprintf(stderr, "error: memory allocation failed.\n");
                     (void) detach(target);
-                    return -1;
+                    return false;
                 }
 
                 match->address = r->start + offset;
@@ -329,14 +334,15 @@ int candidates(list_t * matches, const list_t * regions, pid_t target,
                 if (EXPECT(l_append(matches, NULL, match) == -1, false)) {
                     fprintf(stderr, "error: unable to add match to list.\n");
                     (void) detach(target);
-                    return -1;
+                    free(match);
+                    return false;
                 }
             }
 
             /* print a simple progress meter. */
             if (EXPECT(offset % ((r->size - (r->size % 10)) / 10) == 10, false)) {
                 fprintf(stderr, ".");
-                fflush(stderr); /*lint !e534 */
+                fflush(stderr);
             }
         }
 
@@ -350,104 +356,39 @@ int candidates(list_t * matches, const list_t * regions, pid_t target,
     return detach(target);
 }
 
-int setaddr(pid_t target, void *addr, value_t * to)
+bool setaddr(pid_t target, void *addr, const value_t * to)
 {
     value_t saved;
 
-    memset(&saved, 0x00, sizeof(saved));
-
-    if (attach(target) == -1) {
-        return -1;
+    if (attach(target) == false) {
+        return false;
     }
 
     if (peekdata(target, addr, &saved) == false) {
-        return -1;
+        fprintf(stderr, "error: couldnt access the target address %10p\n",
+                addr);
+        return false;
     }
 
-    if (to->flags.u32)
-        saved.value.u32 = to->value.u32;
-    else if (to->flags.u16)
-        saved.value.u16 = to->value.u16;
-    else if (to->flags.u8)
-        saved.value.u8 = to->value.u8;
+    /* XXX: oh god */
+    if (to->flags.wlong)
+        saved.value.tulong = to->value.tulong;
+    else if (to->flags.wint)
+        saved.value.tuint = to->value.tuint;
+    else if (to->flags.wshort)
+        saved.value.tushort = to->value.tushort;
+    else if (to->flags.wchar)
+        saved.value.tuchar = to->value.tuchar;
+    else if (to->flags.tfloat)
+        saved.value.tfloat = to->value.tslong;
     else {
         fprintf(stderr, "error: could not determine type to poke.\n");
-        return -1;
+        return false;
     }
 
-    if (ptrace(PTRACE_POKEDATA, target, addr, saved.value.u32) == -1) {
-        return -1;
+    if (ptrace(PTRACE_POKEDATA, target, addr, saved.value.tulong) == -1L) {
+        return false;
     }
 
     return detach(target);
-}
-
-bool valuecmp(value_t * required, value_t * candidate, matchtype_t type)
-{
-    bool ret = false, seen = false;
-
-    assert(required != NULL);
-    assert(candidate != NULL);
-
-    seen = candidate->flags.seen & required->flags.seen;
-
-
-    switch (type) {
-    case MATCHEXACT:
-    case MATCHEQUAL:
-        if (!seen
-            || (required->flags.u8
-                && (candidate->flags.u8 || !candidate->flags.seen)))
-            ret |= candidate->flags.u8 =
-                (candidate->value.u8 == required->value.u8);
-        if (!seen
-            || (required->flags.u16
-                && (candidate->flags.u16 || !candidate->flags.seen)))
-            ret |= candidate->flags.u16 =
-                (candidate->value.u16 == required->value.u16);
-        if (!seen
-            || (required->flags.u32
-                && (candidate->flags.u32 || !candidate->flags.seen)))
-            ret |= candidate->flags.u32 =
-                (candidate->value.u32 == required->value.u32);
-        break;
-    case MATCHINCREMENT:
-        if (!seen
-            || (required->flags.u8
-                && (candidate->flags.u8 || !candidate->flags.seen)))
-            ret |= candidate->flags.u8 =
-                (candidate->value.u8 > required->value.u8);
-        if (!seen
-            || (required->flags.u16
-                && (candidate->flags.u16 || !candidate->flags.seen)))
-            ret |= candidate->flags.u16 =
-                (candidate->value.u16 > required->value.u16);
-        if (!seen
-            || (required->flags.u32
-                && (candidate->flags.u32 || !candidate->flags.seen)))
-            ret |= candidate->flags.u32 =
-                (candidate->value.u32 > required->value.u32);
-        break;
-    case MATCHDECREMENT:
-        if (!seen
-            || (required->flags.u8
-                && (candidate->flags.u8 || !candidate->flags.seen)))
-            ret |= candidate->flags.u8 =
-                (candidate->value.u8 < required->value.u8);
-        if (!seen
-            || (required->flags.u16
-                && (candidate->flags.u16 || !candidate->flags.seen)))
-            ret |= candidate->flags.u16 =
-                (candidate->value.u16 < required->value.u16);
-        if (!seen
-            || (required->flags.u32
-                && (candidate->flags.u32 || !candidate->flags.seen)))
-            ret |= candidate->flags.u32 =
-                (candidate->value.u32 < required->value.u32);
-        break;
-    }
-
-    candidate->flags.seen = 1;
-
-    return ret;
 }

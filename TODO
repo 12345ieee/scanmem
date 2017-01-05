@@ -1,20 +1,26 @@
 Next Version
 ============
-* search registers.
-* memory limits, warn on too many matches?
-* support float type, and perhaps double and long long.
-* more efficient snapshot.
-* tab completion
-* multiple background cont'd sets.
+* some sort of regression testing, probably using dejagnu.
+* design a more efficient format for snapshot.
+* inefficient use of memory, lots of matches uses way too much memory, fix this.
+* automatically support zero and one based values.
+* autotool the build.
+* add inverted matches for set and delete, eg
+    - delete !13  - delete all matches except 13
+    - set !13,12,10=3 - set all matches except 13,12 and 10 to 3.
+* allow delete to match flags
+  - delete ~I - delete all matches that could not be integers.
+* prompt on strange operations (eg, listing 10 million matches)
+    - add options command to disable prompts.
+* optional float rounding techniques, eg floor(), ceil(), round(), rint(), etc?
+* add similar syntax as set to dregion, delete and watch.
+    - watch 12,23,5 - watch these three matches
 
 Future
 ======
-* Allow user to build a set of addresses and values that can be re-inserted on command. (macros)
-* allow user to save addresses with labels
-* differentiate between signed and unsigned integers, > and < probably dont work for these right now.
-* better command line parsing.
-* better online help, eg "help delete"
-* memory leak with dregion (free the pathname)
-* implement a completion function for readline.
-* support float type, and perhaps double and long long.
-* shell escape
+* macro support
+* support double and long long.
+* read symbol table, and print its name if we have a match.
+* support more esoteric number formats, such as bcd, ascii, etc.
+* pagination
+* save state to a file, so you can apply it to a different pid.
