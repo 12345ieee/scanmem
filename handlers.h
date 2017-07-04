@@ -238,7 +238,7 @@ bool handler__default(globals_t *vars, char **argv, unsigned argc);
 #define STRING_SHRTDOC "match a given string"
 #define STRING_LONGDOC "usage \" <text>\n" \
                 "<text> is counted since the 2nd character following the leading \"\n" \
-                "This can only be used when scan_data_type is set to be string\n" \
+                "scan_data_type will be set to be string, if it currently isn't.\n" \
                 "Example:\n" \
                 "\t\" Scan for string, spaces and ' \" are all acceptable.\n"
 

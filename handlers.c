@@ -908,11 +908,11 @@ bool handler__string(globals_t * vars, char **argv, unsigned argc)
 {
     USEPARAMS();
 
-    /* test scan_data_type */
+    /* Test scan_data_type. Automatically set to string for convenience */
     if (vars->options.scan_data_type != STRING)
     {
-        show_error("scan_data_type is not string, see `help option`.\n");
-        return false;
+        show_info("scan_data_type was not string, it was set automatically.\n");
+        vars->options.scan_data_type = STRING;
     }
 
     /* test the length */
