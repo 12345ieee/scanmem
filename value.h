@@ -126,6 +126,8 @@ typedef enum __attribute__ ((__packed__)) {
 
 /* this struct describes values provided by users */
 typedef struct {
+    match_flags flags;
+
     int8_t int8_value;
     uint8_t uint8_value;
     int16_t int16_value;
@@ -141,8 +143,6 @@ typedef struct {
     const wildcard_t *wildcard_value;
 
     const char *string_value;
-
-    match_flags flags;
 } uservalue_t;
 
 /* used when outputting values to user */

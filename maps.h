@@ -50,10 +50,11 @@ extern const char *region_type_names[];
 
 /* a region obtained from /proc/pid/maps, these are searched for matches */
 typedef struct {
-    char *start;             /* Start address. Hack: If HAVE_PROCMEM is defined, this is actually an (unsigned long) offset into /proc/{pid}/mem */
-    unsigned long size;              /* size */
+    char *start;                /* Start address. Hack: If HAVE_PROCMEM is defined, this is actually an (unsigned long) offset into /proc/{pid}/mem */
+    unsigned long size;         /* size */
     region_type_t type;
-    unsigned long load_addr;         /* e.g. load address of the executable */
+    unsigned id;                /* unique identifier */
+    unsigned long load_addr;    /* e.g. load address of the executable */
     struct __attribute__((packed)) {
         unsigned read:1;
         unsigned write:1;
@@ -61,7 +62,6 @@ typedef struct {
         unsigned shared:1;
         unsigned private:1;
     } flags;
-    unsigned id;                /* unique identifier */
     char filename[1];           /* associated file, must be last */
 } region_t;
 

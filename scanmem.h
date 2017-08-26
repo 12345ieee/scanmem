@@ -39,12 +39,12 @@
 
 /* global settings */
 typedef struct {
-    unsigned exit:1;
+    bool exit;
+    bool stop_flag;
     pid_t target;
     matches_and_old_values_array *matches;
     unsigned long num_matches;
     double scan_progress;
-    bool stop_flag;
     list_t *regions;
     list_t *commands;              /* command handlers */
     const char *current_cmdline;   /* the command being executed */

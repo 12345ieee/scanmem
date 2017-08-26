@@ -48,12 +48,12 @@ void sm_printversion(FILE *outfd)
 
 /* global settings */
 globals_t sm_globals = {
-    0,                          /* exit flag */
+    false,                      /* exit flag */
+    false,                      /* stop flag */
     0,                          /* pid target */
     NULL,                       /* matches */
     0,                          /* match count */
     0,                          /* scan progress */
-    false,                      /* stop flag */
     NULL,                       /* regions */
     NULL,                       /* commands */
     NULL,                       /* current_cmdline */
