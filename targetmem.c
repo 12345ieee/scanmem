@@ -28,6 +28,7 @@
 #include <ctype.h>
 
 #include "targetmem.h"
+#include "common.h"
 #include "show_message.h"
 #include "value.h"
 
@@ -82,42 +83,39 @@ null_terminate (matches_and_old_values_array *array,
     return array;
 }
 
-void data_to_printable_string (char *buf, int buf_length,
-                               matches_and_old_values_swath *swath,
-                               size_t index, int string_length)
+int string_match_to_text (char *buf, size_t buf_length,
+                          const matches_and_old_values_swath *swath,
+                          size_t index, unsigned int string_length)
 {
-    long swath_length = swath->number_of_bytes - index;
-    /* TODO: what if length is too large ? */
-    long max_length = (swath_length >= string_length) ? string_length : swath_length;
-    int i;
+    size_t swath_length = swath->number_of_bytes - index;
+    size_t max_length = MIN(string_length, swath_length);
+    max_length = MIN(max_length, buf_length-1);
 
+    uint i;
     for (i = 0; i < max_length; ++i) {
         uint8_t byte = swath->data[index+i].old_value;
         buf[i] = isprint(byte) ? byte : '.';
     }
     buf[i] = 0; /* null-terminate */
+    return max_length;
 }
 
-void data_to_bytearray_text (char *buf, int buf_length,
-                             matches_and_old_values_swath *swath,
-                             size_t index, int bytearray_length)
+int bytearray_match_to_text (char *buf, size_t buf_length,
+                             const matches_and_old_values_swath *swath,
+                             size_t index, unsigned int bytearray_length)
 {
-    int i;
+    size_t swath_length = swath->number_of_bytes - index;
+    size_t max_length = MIN(bytearray_length, swath_length);
+
+    uint i;
     int bytes_used = 0;
-    long swath_length = swath->number_of_bytes - index;
-
-    /* TODO: what if length is too large ? */
-    long max_length = (swath_length >= bytearray_length) ?
-                       bytearray_length : swath_length;
-
     for (i = 0; i < max_length; ++i) {
         uint8_t byte = swath->data[index+i].old_value;
 
-        /* TODO: check error here */
-        snprintf(buf+bytes_used, buf_length-bytes_used,
-                 (i<max_length-1) ? "%02x " : "%02x", byte);
-        bytes_used += 3;
+        bytes_used += snprintf(buf+bytes_used, buf_length-bytes_used,
+                               (i<max_length-1) ? "%02x " : "%02x", byte);
     }
+    return bytes_used;
 }
 
 match_location

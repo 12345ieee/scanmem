@@ -1077,7 +1077,7 @@ class GameConqueror():
                 (mid, line) = line.split(']', 1)
                 mid = int(mid.strip(' []'))
                 (addr_str, off_str, rt, val, t) = list(map(str.strip, line.split(',')[:5]))
-                t = t.strip(' []')
+                t = t.strip(' []').split(':')[0] # TODO: do something with length info
                 if t == 'unknown':
                     continue
                 # `insert_with_valuesv` has the same function of `append`, but it's 7x faster

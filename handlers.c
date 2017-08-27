@@ -425,10 +425,9 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
 {
     unsigned long num = 0;
     size_t buf_len = 128; /* will be realloc'd later if necessary */
+    int printed;
     element_t *np = NULL;
-    char *v = NULL;
-    const char *bytearray_suffix = ", [bytearray]";
-    const char *string_suffix = ", [string]";
+    char *v;
     struct winsize w;
     FILE *pager;
 
@@ -490,21 +489,21 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
                     show_error("memory allocation failed.\n");
                     goto fail;
                 }
-                data_to_bytearray_text(v, buf_len, reading_swath_index, reading_iterator, flags);
-                assert(strlen(v) + strlen(bytearray_suffix) + 1 <= buf_len); /* or maybe realloc is better? */
-                strcat(v, bytearray_suffix);
+                printed = bytearray_match_to_text(v, buf_len, reading_swath_index, reading_iterator, flags);
+                printed += snprintf(v + printed, buf_len - printed, ", [bytearray:%u]", flags);
+                assert(printed < buf_len);
                 break;
             case STRING:
-                buf_len = flags + strlen(string_suffix) + 32; /* for the string and suffix, this should be enough */
+                buf_len = flags + 32; /* for the string and suffix, this should be enough */
                 v = realloc(v, buf_len);
                 if (v == NULL)
                 {
                     show_error("memory allocation failed.\n");
                     goto fail;
                 }
-                data_to_printable_string(v, buf_len, reading_swath_index, reading_iterator, flags);
-                assert(strlen(v) + strlen(string_suffix) + 1 <= buf_len); /* or maybe realloc is better? */
-                strcat(v, string_suffix);
+                printed = string_match_to_text(v, buf_len, reading_swath_index, reading_iterator, flags);
+                printed += snprintf(v + printed, buf_len - printed, ", [string:%u]", flags);
+                assert(printed < buf_len);
                 break;
             default: /* numbers */
                 ; /* cheat gcc */

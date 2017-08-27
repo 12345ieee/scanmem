@@ -76,15 +76,15 @@ matches_and_old_values_array *allocate_array (matches_and_old_values_array *arra
 matches_and_old_values_array *null_terminate (matches_and_old_values_array *array,
                                               matches_and_old_values_swath *swath);
 
-/* for printable text representation */
-void data_to_printable_string (char *buf, int buf_length,
-                               matches_and_old_values_swath *swath,
-                               size_t index, int string_length);
+/* Writes pointed string in `buf`. Returns number of written chars. */
+int string_match_to_text (char *buf, size_t buf_length,
+                          const matches_and_old_values_swath *swath,
+                          size_t index, unsigned int string_length);
 
-/* for bytearray representation */
-void data_to_bytearray_text (char *buf, int buf_length,
-                             matches_and_old_values_swath *swath,
-                             size_t index, int bytearray_length);
+/* Writes pointed bytearray in `buf`. Returns number of written chars. */
+int bytearray_match_to_text (char *buf, size_t buf_length,
+                             const matches_and_old_values_swath *swath,
+                             size_t index, unsigned int bytearray_length);
 
 match_location nth_match (matches_and_old_values_array *matches, size_t n);
 
