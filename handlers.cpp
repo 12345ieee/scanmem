@@ -345,7 +345,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                         /* XXX: valcmp? make sure the sizes match */
                         uservalue2value(&v, &userval);
                         
-                        show_info("setting *%p to %#"PRIx64"...\n", address, v.int64_value);
+                        show_info("setting *%p to %#" PRIx64"...\n", address, v.int64_value);
 
                         /* set the value specified */
                         fix_endianness(&v, vars->options.reverse_endianness);
@@ -378,7 +378,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                         /* XXX: as above : make sure the sizes match */
                         uservalue2value(&v, &userval);
 
-                        show_info("setting *%p to %#"PRIx64"...\n", address, v.int64_value);
+                        show_info("setting *%p to %#" PRIx64"...\n", address, v.int64_value);
 
                         fix_endianness(&v, vars->options.reverse_endianness);
                         if (sm_setaddr(vars->target, address, &v) == false) {
@@ -533,7 +533,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
                 }
                 np = np->next;
             }
-            fprintf(pager, "[%2lu] "POINTER_FMT", %2u + "POINTER_FMT", %5s, %s\n",
+            fprintf(pager, "[%2lu] " POINTER_FMT ", %2u + " POINTER_FMT ", %5s, %s\n",
                    num++, address_ul, region_id, match_off, region_type, v);
         }
 
@@ -786,7 +786,7 @@ bool handler__lregions(globals_t * vars, char **argv, unsigned argc)
     while (np) {
         region_t *region = np->data;
 
-        fprintf(stderr, "[%2u] "POINTER_FMT", %7lu bytes, %5s, "POINTER_FMT", %c%c%c, %s\n", 
+        fprintf(stderr, "[%2u] " POINTER_FMT", %7lu bytes, %5s, " POINTER_FMT", %c%c%c, %s\n", 
                 region->id,
                 (unsigned long)region->start, region->size,
                 region_type_names[region->type], region->load_addr,
@@ -1555,25 +1555,25 @@ bool handler__write(globals_t * vars, char **argv, unsigned argc)
     {
         data_width = 1;
         datatype = 0;
-        fmt = "%"PRId8;
+        fmt = "%" PRId8;
     }
     else if (st == INTEGER16)
     {
         data_width = 2;
         datatype = 0;
-        fmt = "%"PRId16;
+        fmt = "%" PRId16;
     }
     else if (st == INTEGER32)
     {
         data_width = 4;
         datatype = 0;
-        fmt = "%"PRId32;
+        fmt = "%" PRId32;
     }
     else if (st == INTEGER64)
     {
         data_width = 8;
         datatype = 0;
-        fmt = "%"PRId64;
+        fmt = "%" PRId64;
     }
     else if (st == FLOAT32)
     {

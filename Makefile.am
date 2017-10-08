@@ -8,6 +8,7 @@ endif
 
 # '-O2 -g' are added by `configure`, unless the user overrides CFLAGS
 AM_CFLAGS = -std=gnu99 -Wall
+AM_CXXFLAGS = -std=gnu++11 -Wall -fpermissive -Wno-sign-compare
 
 lib_LTLIBRARIES = libscanmem.la
 
@@ -23,25 +24,25 @@ libscanmem_la_include_HEADERS = commands.h \
     targetmem.h \
     value.h
 
-libscanmem_la_SOURCES = commands.c \
+libscanmem_la_SOURCES = commands.cpp \
     common.h \
-    ptrace.c \
+    ptrace.cpp \
     handlers.h \
-    handlers.c \
+    handlers.cpp \
     interrupt.h \
-    list.c \
+    list.cpp \
     licence.h \
-    maps.c \
-    scanmem.c \
-    scanroutines.c \
-    sets.c \
-    show_message.c \
-    targetmem.c \
-    value.c 
+    maps.cpp \
+    scanmem.cpp \
+    scanroutines.cpp \
+    sets.cpp \
+    show_message.cpp \
+    targetmem.cpp \
+    value.cpp
 
 if !HAVE_GETLINE
   libscanmem_la_SOURCES += getline.h \
-      getline.c
+      getline.cpp
 endif
 
 libscanmem_la_LDFLAGS = -version-info 1:0:0 \
@@ -50,12 +51,12 @@ libscanmem_la_LDFLAGS = -version-info 1:0:0 \
 bin_PROGRAMS = scanmem
 
 scanmem_SOURCES = menu.h \
-    menu.c \
-    main.c
+    menu.cpp \
+    main.cpp
 
 if !WITH_READLINE
   scanmem_SOURCES += readline.h \
-      readline.c
+      readline.cpp
 endif
 
 scanmem_LDADD = libscanmem.la

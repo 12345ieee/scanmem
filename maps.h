@@ -60,7 +60,7 @@ typedef struct {
         unsigned write:1;
         unsigned exec:1;
         unsigned shared:1;
-        unsigned private:1;
+        unsigned priv:1;
     } flags;
     char filename[1];           /* associated file, must be last */
 } region_t;

@@ -232,7 +232,7 @@ bool sm_readmaps(pid_t target, list_t *regions, region_scan_level_t region_scan_
                 /* setup other permissions */
                 map->flags.exec = (exec == 'x');
                 map->flags.shared = (cow == 's');
-                map->flags.private = (cow == 'p');
+                map->flags.priv = (cow == 'p');
 
                 /* save pathname */
                 if (strlen(filename) != 0) {

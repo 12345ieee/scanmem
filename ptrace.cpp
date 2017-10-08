@@ -123,7 +123,7 @@ bool sm_detach(pid_t target)
  * to make a local mirror of the process memory we're interested in.
  */
 
-extern inline bool sm_peekdata(pid_t pid, const char *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength)
+static inline bool sm_peekdata(pid_t pid, const char *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength)
 {
     const char *reqaddr = addr;
     int i, j;

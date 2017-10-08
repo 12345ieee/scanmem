@@ -1,10 +1,11 @@
 AC_INIT([scanmem],[0.17~dev],[https://github.com/scanmem/scanmem])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability foreign])
-AC_CONFIG_SRCDIR([main.c])
+AC_CONFIG_SRCDIR([main.cpp])
 AC_CONFIG_HEADER([config.h])
 AC_USE_SYSTEM_EXTENSIONS
 AC_HEADER_STDBOOL
+AC_PROG_CXX
 
 LT_INIT
 
