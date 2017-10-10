@@ -338,7 +338,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                     loc = nth_match(vars->matches, match_set.buf[i]);
                     if (loc.swath) {
                         value_t v;
-                        void *address = remote_address_of_nth_element(loc.swath, loc.index);
+                        char *address = remote_address_of_nth_element(loc.swath, loc.index);
 
                         v = data_to_val(loc.swath, loc.index);
                         /* copy userval onto v */
@@ -371,7 +371,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                     /* only actual matches are considered */
                     if (reading_swath_index->data[reading_iterator].match_info != flags_empty)
                     {
-                        void *address = remote_address_of_nth_element(reading_swath_index, reading_iterator);
+                        char *address = remote_address_of_nth_element(reading_swath_index, reading_iterator);
                         value_t v;
 
                         v = data_to_val(reading_swath_index, reading_iterator);
@@ -391,7 +391,8 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
                     ++reading_iterator;
                     if (reading_iterator >= reading_swath_index->number_of_bytes)
                     {
-                        reading_swath_index = local_address_beyond_last_element(reading_swath_index);
+                        reading_swath_index = (matches_and_old_values_swath *)
+                            local_address_beyond_last_element(reading_swath_index);
                         reading_iterator = 0;
                     }
                 }
@@ -513,7 +514,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
                 break;
             }
 
-            void *address = remote_address_of_nth_element(reading_swath_index, reading_iterator);
+            char *address = remote_address_of_nth_element(reading_swath_index, reading_iterator);
             unsigned long address_ul = (unsigned long)address;
             unsigned int region_id = 99;
             unsigned long match_off = 0;
@@ -541,7 +542,8 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
         ++reading_iterator;
         if (reading_iterator >= reading_swath_index->number_of_bytes)
         {
-            reading_swath_index = local_address_beyond_last_element(reading_swath_index);
+            reading_swath_index = (matches_and_old_values_swath *)
+                local_address_beyond_last_element(reading_swath_index);
             reading_iterator = 0;
         }
     }
@@ -602,7 +604,7 @@ bool handler__delete(globals_t * vars, char **argv, unsigned argc)
         /* go on to the next one... */
         ++reading_iterator;
         if (reading_iterator >= reading_swath_index->number_of_bytes) {
-            reading_swath_index =
+            reading_swath_index = (matches_and_old_values_swath *)
                 local_address_beyond_last_element(reading_swath_index);
 
             reading_iterator = 0;
@@ -750,8 +752,8 @@ bool handler__dregion(globals_t *vars, char **argv, unsigned argc)
         {
             region_t *reg_to_delete = np->data;
 
-            void *start_address = reg_to_delete->start;
-            void *end_address = reg_to_delete->start + reg_to_delete->size;
+            char *start_address = reg_to_delete->start;
+            char *end_address = reg_to_delete->start + reg_to_delete->size;
             vars->matches = delete_in_address_range(vars->matches, &vars->num_matches,
                                                     start_address, end_address);
             if (vars->matches == NULL)
@@ -1250,7 +1252,7 @@ bool handler__watch(globals_t * vars, char **argv, unsigned argc)
     time_t t;
     match_location loc;
     value_t val;
-    void *address;
+    char *address;
     scan_data_type_t data_type = vars->options.scan_data_type;
     scan_routine_t valuecmp_routine;
 
@@ -1358,7 +1360,7 @@ bool handler__show(globals_t * vars, char **argv, unsigned argc)
 
 bool handler__dump(globals_t * vars, char **argv, unsigned argc)
 {
-    void *addr;
+    char *addr;
     char *endptr;
     char *buf = NULL;
     int len;
@@ -1373,7 +1375,7 @@ bool handler__dump(globals_t * vars, char **argv, unsigned argc)
     
     /* check address */
     errno = 0;
-    addr = (void *)(strtoll(argv[1], &endptr, 16));
+    addr = (char *)(strtoll(argv[1], &endptr, 16));
     if ((errno != 0) || (*endptr != '\0'))
     {
         show_error("bad address, see `help dump`.\n");
@@ -1533,7 +1535,7 @@ bool handler__write(globals_t * vars, char **argv, unsigned argc)
 {
     int data_width = 0;
     const char *fmt = NULL;
-    void *addr;
+    char *addr;
     char *buf = NULL;
     char *endptr;
     int datatype; /* 0 for numbers, 1 for bytearray, 2 for string */
@@ -1625,7 +1627,7 @@ bool handler__write(globals_t * vars, char **argv, unsigned argc)
 
     /* check address */
     errno = 0;
-    addr = (void *)strtoll(argv[2], &endptr, 16);
+    addr = (char *)strtoll(argv[2], &endptr, 16);
     if ((errno != 0) || (*endptr != '\0'))
     {
         show_error("bad address, see `help write`.\n");

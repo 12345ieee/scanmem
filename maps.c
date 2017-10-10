@@ -224,7 +224,7 @@ bool sm_readmaps(pid_t target, list_t *regions, region_scan_level_t region_scan_
                 /* initialize this region */
                 map->flags.read = true;
                 map->flags.write = true;
-                map->start = (void *) start;
+                map->start = (char *) start;
                 map->size = (unsigned long) (end - start);
                 map->type = type;
                 map->load_addr = load_addr;

@@ -123,7 +123,7 @@ bool sm_detach(pid_t target)
  * to make a local mirror of the process memory we're interested in.
  */
 
-extern inline bool sm_peekdata(pid_t pid, const void *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength)
+extern inline bool sm_peekdata(pid_t pid, const char *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength)
 {
     const char *reqaddr = addr;
     int i, j;
@@ -313,7 +313,7 @@ bool sm_checkmatches(globals_t *vars,
 
         match_flags old_flags = reading_swath_index->data[reading_iterator].match_info;
         uint old_length = flags_to_memlength(vars->options.scan_data_type, old_flags);
-        void *address = reading_swath.first_byte_in_child + reading_iterator;
+        char *address = reading_swath.first_byte_in_child + reading_iterator;
 
         /* read value from this address */
         if (UNLIKELY(sm_peekdata(vars->target, address, old_length, &memory_ptr, &memlength) == false))
@@ -617,7 +617,7 @@ bool sm_searchregions(globals_t *vars, scan_match_type_t match_type, const userv
 }
 
 /* Needs to support only ANYNUMBER types */
-bool sm_setaddr(pid_t target, void *addr, const value_t *to)
+bool sm_setaddr(pid_t target, char *addr, const value_t *to)
 {
     unsigned int i;
     const mem64_t *memory_ptr;
@@ -656,7 +656,7 @@ bool sm_setaddr(pid_t target, void *addr, const value_t *to)
     return sm_detach(target);
 }
 
-bool sm_read_array(pid_t target, const void *addr, char *buf, int len)
+bool sm_read_array(pid_t target, const char *addr, char *buf, int len)
 {
     if (sm_attach(target) == false) {
         return false;
@@ -700,7 +700,7 @@ bool sm_read_array(pid_t target, const void *addr, char *buf, int len)
 }
 
 /* TODO: may use /proc/<pid>/mem here */
-bool sm_write_array(pid_t target, void *addr, const void *data, int len)
+bool sm_write_array(pid_t target, char *addr, const char *data, int len)
 {
     int i,j;
     long peek_value;

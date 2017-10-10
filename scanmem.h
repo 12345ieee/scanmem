@@ -79,14 +79,14 @@ void sm_set_stop_flag(bool stop_flag);
 
 /* ptrace.c */
 bool sm_detach(pid_t target);
-bool sm_setaddr(pid_t target, void *addr, const value_t *to);
+bool sm_setaddr(pid_t target, char *addr, const value_t *to);
 bool sm_checkmatches(globals_t *vars, scan_match_type_t match_type,
                      const uservalue_t *uservalue);
 bool sm_searchregions(globals_t *vars, scan_match_type_t match_type,
                       const uservalue_t *uservalue);
-bool sm_peekdata(pid_t pid, const void *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength);
+bool sm_peekdata(pid_t pid, const char *addr, uint16_t length, const mem64_t **result_ptr, size_t *memlength);
 bool sm_attach(pid_t target);
-bool sm_read_array(pid_t target, const void *addr, char *buf, int len);
-bool sm_write_array(pid_t target, void *addr, const void *data, int len);
+bool sm_read_array(pid_t target, const char *addr, char *buf, int len);
+bool sm_write_array(pid_t target, char *addr, const char *data, int len);
 
 #endif /* SCANMEM_H */

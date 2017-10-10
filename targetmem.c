@@ -59,16 +59,17 @@ null_terminate (matches_and_old_values_array *array,
         assert(swath->first_byte_in_child == NULL);
 
     } else {
-        swath = local_address_beyond_last_element(swath );
-        array = allocate_enough_to_reach(array, ((void *)swath) +
+        swath = (matches_and_old_values_swath *)
+                    local_address_beyond_last_element(swath);
+        array = allocate_enough_to_reach(array, ((char *)swath) +
                                          sizeof(matches_and_old_values_swath),
                                          &swath);
         swath->first_byte_in_child = NULL;
         swath->number_of_bytes = 0;
     }
 
-    bytes_needed = ((void *)swath + sizeof(matches_and_old_values_swath) -
-                    (void *)array);
+    bytes_needed = ((char *)swath + sizeof(matches_and_old_values_swath) -
+                    (char *)array);
 
     if (bytes_needed < array->bytes_allocated) {
         /* reduce array to its final size */
@@ -142,7 +143,7 @@ nth_match (matches_and_old_values_array *matches, size_t n)
         /* go on to the next one... */
         ++reading_iterator;
         if (reading_iterator >= reading_swath_index->number_of_bytes) {
-            reading_swath_index =
+            reading_swath_index = (matches_and_old_values_swath *)
                 local_address_beyond_last_element(reading_swath_index);
 
             reading_iterator = 0;
@@ -157,7 +158,7 @@ nth_match (matches_and_old_values_array *matches, size_t n)
 matches_and_old_values_array *
 delete_in_address_range (matches_and_old_values_array *array,
                          unsigned long *num_matches,
-                         void *start_address, void *end_address)
+                         char *start_address, char *end_address)
 {
     assert(array);
 
@@ -174,7 +175,7 @@ delete_in_address_range (matches_and_old_values_array *array,
     *num_matches = 0;
 
     while (reading_swath.first_byte_in_child) {
-        void *address = reading_swath.first_byte_in_child + reading_iterator;
+        char *address = reading_swath.first_byte_in_child + reading_iterator;
 
         if (address < start_address || address >= end_address) {
             old_value_and_match_info old_byte;
