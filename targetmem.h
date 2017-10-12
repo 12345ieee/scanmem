@@ -263,7 +263,7 @@ data_to_val_aux (const matches_and_old_values_swath *swath,
 
     /* Init all possible flags in a single go.
      * Also init length to the maximum possible value */
-    val.flags = 0xffffu;
+    val.flags = flags_max;
 
     /* NOTE: This does the right thing for VLT because the flags are in
      * the same order as the number representation (for both endians), so

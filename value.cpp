@@ -157,7 +157,7 @@ bool parse_uservalue_bytearray(char *const *argv, unsigned argc, uservalue_t *va
     /* everything is ok */
     val->bytearray_value = bytes_array;
     val->wildcard_value = wildcards_array;
-    val->flags = argc;
+    val->flags = (match_flags)argc;
     return true;
 
 err:

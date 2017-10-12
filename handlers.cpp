@@ -945,7 +945,7 @@ bool handler__string(globals_t * vars, char **argv, unsigned argc)
 
     uservalue_t val;
     val.string_value = string_value;
-    val.flags = string_length;
+    val.flags = (match_flags)string_length;
  
     /* need a pid for the rest of this to work */
     if (vars->target == 0) {

@@ -351,13 +351,13 @@ DEFINE_ANYTYPE_ROUTINE(RANGE, _REVENDIAN)
 
 extern inline unsigned int scan_routine_VLT_ANY SCAN_ROUTINE_ARGUMENTS
 {
-   return *saveflags = MIN(memlength, (uint16_t)(-1));
+   return *saveflags = (match_flags)MIN(memlength, (uint16_t)(-1));
 }
 
 extern inline unsigned int scan_routine_VLT_UPDATE SCAN_ROUTINE_ARGUMENTS
 {
     /* memlength here is already MIN(memlength, old_value->flags.length) */
-   return *saveflags = memlength;
+   return *saveflags = (match_flags)memlength;
 }
 
 /*---------------*/
@@ -402,7 +402,7 @@ extern inline unsigned int scan_routine_BYTEARRAY_EQUALTO SCAN_ROUTINE_ARGUMENTS
     }
 
     /* matched */
-    *saveflags = length;
+    *saveflags = (match_flags)length;
 
     return length;
 }
@@ -418,7 +418,7 @@ extern inline unsigned int scan_routine_BYTEARRAY_EQUALTO SCAN_ROUTINE_ARGUMENTS
               == *(uint##WIDTH##_t*)(user_value->bytearray_value))) \
         { \
             /* matched */ \
-            *saveflags = (WIDTH)/8; \
+            *saveflags = (match_flags)((WIDTH)/8); \
             return (WIDTH)/8; \
         } \
         else \
@@ -453,7 +453,7 @@ DEFINE_BYTEARRAY_POW2_EQUALTO_ROUTINE(64)
             } \
         } \
         /* matched */ \
-        *saveflags = (WIDTH)/8; \
+        *saveflags = (match_flags)((WIDTH)/8); \
         return (WIDTH)/8; \
     }
 
@@ -502,7 +502,7 @@ extern inline unsigned int scan_routine_STRING_EQUALTO SCAN_ROUTINE_ARGUMENTS
     }
     
     /* matched */
-    *saveflags = length;
+    *saveflags = (match_flags)length;
 
     return length;
 }
@@ -517,7 +517,7 @@ extern inline unsigned int scan_routine_STRING_EQUALTO SCAN_ROUTINE_ARGUMENTS
             (get_s##WIDTH##b(memory_ptr) == *(int##WIDTH##_t*)(user_value->string_value))) \
         { \
             /* matched */ \
-            *saveflags = (WIDTH)/8; \
+            *saveflags = (match_flags)((WIDTH)/8); \
             return (WIDTH)/8; \
         } \
         else \
@@ -551,7 +551,7 @@ DEFINE_STRING_POW2_EQUALTO_ROUTINE(64)
             } \
         } \
         /* matched */ \
-        *saveflags = (WIDTH)/8; \
+        *saveflags = (match_flags)((WIDTH)/8); \
         return (WIDTH)/8; \
     }
 
