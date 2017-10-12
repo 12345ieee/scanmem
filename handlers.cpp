@@ -646,7 +646,7 @@ bool handler__reset(globals_t * vars, char **argv, unsigned argc)
 
 bool handler__pid(globals_t * vars, char **argv, unsigned argc)
 {
-    char *resetargv[] = { "reset", NULL };
+    char *resetargv[] = { (char*)"reset", NULL };
     char *end = NULL;
 
     if (argc == 2) {

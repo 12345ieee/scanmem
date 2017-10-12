@@ -89,7 +89,8 @@ static inline bool inc_arr_sz(size_t **valarr, size_t *arr_maxsz, size_t maxsz)
 bool parse_uintset(const char *lptr, struct set *set, size_t maxsz)
 {
     const char        *tok, *tmpnum = NULL, *tmpnum_end;
-    char              *tmpnum_endptr = NULL, *fail_reason = "BUG";
+    char              *tmpnum_endptr = NULL;
+    const char        *fail_reason = "BUG";
     bool               got_num, is_hex = false, invert = false;
     size_t             last_num = 0, arr_szfilled, arr_maxsz;
     size_t            *valarr;

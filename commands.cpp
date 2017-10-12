@@ -48,7 +48,7 @@
  */
 
 bool sm_registercommand(const char *command, handler_ptr handler, list_t *commands,
-                        char *shortdoc, char *longdoc)
+                        const char *shortdoc, const char *longdoc)
 {
     command_t *data;
 

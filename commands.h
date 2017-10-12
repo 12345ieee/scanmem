@@ -30,13 +30,13 @@ typedef bool (*handler_ptr)(globals_t *vars, char **argv, unsigned argc);
 typedef struct {
     handler_ptr handler;
     char *command;
-    char *shortdoc;
-    char *longdoc;
+    const char *shortdoc;
+    const char *longdoc;
 } command_t;
 
 
 bool sm_registercommand(const char *command, handler_ptr handler, list_t *commands,
-                        char *shortdoc, char *longdoc);
+                        const char *shortdoc, const char *longdoc);
 bool sm_execcommand(globals_t *vars, const char *commandline);
 
 #endif /* COMMANDS_H */
