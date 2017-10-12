@@ -155,7 +155,7 @@ allocate_enough_to_reach (matches_and_old_values_array *array,
             bytes_to_allocate = array->max_needed_bytes;
         }
 
-        if (!(array = realloc(array, bytes_to_allocate)))
+        if (!(array = (matches_and_old_values_array*)realloc(array, bytes_to_allocate)))
             return NULL;
 
         array->bytes_allocated = bytes_to_allocate;

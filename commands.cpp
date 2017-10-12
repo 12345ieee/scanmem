@@ -55,7 +55,7 @@ bool sm_registercommand(const char *command, handler_ptr handler, list_t *comman
     assert(commands != NULL);
 
     if (command != NULL) {
-        if ((data = malloc(sizeof(command_t) + strlen(command) + 1)) == NULL) {
+        if ((data = (command_t*)malloc(sizeof(command_t) + strlen(command) + 1)) == NULL) {
             show_error("sorry, there was a memory allocation problem.\n");
             return false;
         }
@@ -64,7 +64,7 @@ bool sm_registercommand(const char *command, handler_ptr handler, list_t *comman
         /* command points to the extra space allocated after data */
         strcpy(data->command, command);
     } else {
-        if ((data = malloc(sizeof(command_t))) == NULL) {
+        if ((data = (command_t*)malloc(sizeof(command_t))) == NULL) {
             show_error("sorry, there was a memory allocation problem.\n");
             return false;
         }
@@ -107,7 +107,7 @@ bool sm_execcommand(globals_t *vars, const char *commandline)
     for (argc = 0; tok; argc++, str = NULL) {
 
         /* make enough size for another pointer (+1 for NULL at end) */
-        if ((argv = realloc(argv, (argc + 1) * sizeof(char *))) == NULL) {
+        if ((argv = (char**)realloc(argv, (argc + 1) * sizeof(char *))) == NULL) {
             show_error("sorry there was a memory allocation error.\n");
             return false;
         }
@@ -129,7 +129,7 @@ bool sm_execcommand(globals_t *vars, const char *commandline)
     
     /* search commands list for appropriate handler */
     while (np) {
-        command_t *command = np->data;
+        command_t *command = (command_t*)np->data;
 
         /* check if this command matches */
 

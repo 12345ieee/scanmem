@@ -26,7 +26,7 @@
 /* create a new list */
 list_t *l_init(void)
 {
-    return calloc(1, sizeof(list_t));
+    return (list_t *)calloc(1, sizeof(list_t));
 }
 
 /* destroy the whole list */
@@ -49,7 +49,7 @@ void l_destroy(list_t * list)
 /* add a new element to the list */
 int l_append(list_t * list, element_t * element, void *data)
 {
-    element_t *n = calloc(1, sizeof(element_t));
+    element_t *n = (element_t *)calloc(1, sizeof(element_t));
 
     if (n == NULL)
         return -1;

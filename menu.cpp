@@ -68,7 +68,7 @@ static char *commandgenerator(const char *text, int state)
 
     /* traverse the commands list, checking for matches */
     while (np) {
-        command_t *command = np->data;
+        command_t *command = (command_t*)np->data;
 
         np = np->next;
 

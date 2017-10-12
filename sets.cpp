@@ -78,7 +78,7 @@ static inline bool inc_arr_sz(size_t **valarr, size_t *arr_maxsz, size_t maxsz)
     else
         *arr_maxsz *= 2;
 
-    if ((valarr_tmpptr = realloc(*valarr, *arr_maxsz * sizeof(size_t))) == NULL)
+    if ((valarr_tmpptr = (size_t*)realloc(*valarr, *arr_maxsz * sizeof(size_t))) == NULL)
         return false;
 
     *valarr = valarr_tmpptr;
@@ -110,7 +110,7 @@ bool parse_uintset(const char *lptr, struct set *set, size_t maxsz)
     } last_type = NIL;
 
     /* allocate space for value pointers */
-    if ((valarr = malloc(DEFAULT_UINTLS_SZ * sizeof(size_t))) == NULL) {
+    if ((valarr = (size_t*)malloc(DEFAULT_UINTLS_SZ * sizeof(size_t))) == NULL) {
         show_error("%s(): OOM (Out Of Memory)\n", __func__);
         return false;
     }
@@ -306,7 +306,7 @@ bool parse_uintset(const char *lptr, struct set *set, size_t maxsz)
             fail_reason = "cannot invert the entire set!";
             goto error;
         }
-        if ((inv_valarr = malloc((maxsz - arr_szfilled) * sizeof(size_t))) == NULL) {
+        if ((inv_valarr = (size_t*)malloc((maxsz - arr_szfilled) * sizeof(size_t))) == NULL) {
             fail_reason = "OOM (Out Of Memory)";
             goto error;
         }
@@ -321,7 +321,7 @@ bool parse_uintset(const char *lptr, struct set *set, size_t maxsz)
         arr_szfilled = maxsz - arr_szfilled;
     } else {
         size_t *tmp_vaptr;
-        if ((tmp_vaptr = realloc(valarr, arr_szfilled * sizeof(size_t))) == NULL) {
+        if ((tmp_vaptr = (size_t*)realloc(valarr, arr_szfilled * sizeof(size_t))) == NULL) {
             fail_reason = "couldn't deallocate possibly unused end of the buffer";
             goto error;
         }

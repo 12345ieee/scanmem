@@ -116,8 +116,8 @@ void uservalue2value(value_t *dst, const uservalue_t *src)
 bool parse_uservalue_bytearray(char *const *argv, unsigned argc, uservalue_t *val)
 {
     int i,j;
-    uint8_t *bytes_array = malloc(argc*sizeof(uint8_t));
-    wildcard_t *wildcards_array = malloc(argc*sizeof(wildcard_t));
+    uint8_t *bytes_array = (uint8_t*)malloc(argc*sizeof(uint8_t));
+    wildcard_t *wildcards_array = (wildcard_t*)malloc(argc*sizeof(wildcard_t));
 
     if (bytes_array == NULL || wildcards_array == NULL)
     {

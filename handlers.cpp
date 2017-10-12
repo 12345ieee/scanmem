@@ -231,7 +231,7 @@ bool handler__set(globals_t * vars, char **argv, unsigned argc)
 
     /* --- parse arguments into settings structs --- */
 
-    settings = calloca(argc - 1, sizeof(struct setting));
+    settings = (setting*)calloca(argc - 1, sizeof(struct setting));
 
     /* parse every block into a settings struct */
     for (block = 0; block < argc - 1; block++) {
@@ -444,7 +444,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
     if (vars->num_matches == 0)
         return false;
 
-    if ((v = malloc(buf_len)) == NULL)
+    if ((v = (char*)malloc(buf_len)) == NULL)
     {
         show_error("memory allocation failed.\n");
         return false;
@@ -482,7 +482,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
             {
             case BYTEARRAY:
                 buf_len = flags * 3 + 32;
-                v = realloc(v, buf_len); /* for each byte and the suffix, this should be enough */
+                v = (char*)realloc(v, buf_len); /* for each byte and the suffix, this should be enough */
 
                 if (v == NULL)
                 {
@@ -495,7 +495,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
                 break;
             case STRING:
                 buf_len = flags + 32; /* for the string and suffix, this should be enough */
-                v = realloc(v, buf_len);
+                v = (char*)realloc(v, buf_len);
                 if (v == NULL)
                 {
                     show_error("memory allocation failed.\n");
@@ -522,7 +522,7 @@ bool handler__list(globals_t *vars, char **argv, unsigned argc)
              * note: we assume the regions list and matches are sorted
              */
             while (np) {
-                region_t *region = np->data;
+                region_t *region = (region_t*)np->data;
                 unsigned long region_start = (unsigned long)region->start;
                 if (address_ul < region_start + region->size &&
                   address_ul >= region_start) {
@@ -730,7 +730,7 @@ bool handler__dregion(globals_t *vars, char **argv, unsigned argc)
         
         /* find the correct region node */
         while (np) {
-            region_t *r = np->data;
+            region_t *r = (region_t*)np->data;
             
             /* compare the node id to the id the user specified */
             if (r->id == reg_id)
@@ -749,7 +749,7 @@ bool handler__dregion(globals_t *vars, char **argv, unsigned argc)
         /* check for any affected matches before removing it */
         if(vars->num_matches > 0)
         {
-            region_t *reg_to_delete = np->data;
+            region_t *reg_to_delete = (region_t*)np->data;
 
             char *start_address = reg_to_delete->start;
             char *end_address = reg_to_delete->start + reg_to_delete->size;
@@ -784,7 +784,7 @@ bool handler__lregions(globals_t * vars, char **argv, unsigned argc)
     
     /* print a list of regions that have been searched */
     while (np) {
-        region_t *region = np->data;
+        region_t *region = (region_t*)np->data;
 
         fprintf(stderr, "[%2u] " POINTER_FMT", %7lu bytes, %5s, " POINTER_FMT", %c%c%c, %s\n", 
                 region->id,
@@ -935,7 +935,7 @@ bool handler__string(globals_t * vars, char **argv, unsigned argc)
      * when the string will be read as a sequence of int64 during a scan.
      * `malloc()` instead ensures enough alignment for any type.
      */
-    char *string_value = malloc((string_length+1)*sizeof(char));
+    char *string_value = (char*)malloc((string_length+1)*sizeof(char));
     if (string_value == NULL)
     {
         show_error("memory allocation for string failed.\n");
@@ -1154,7 +1154,7 @@ bool handler__help(globals_t *vars, char **argv, unsigned argc)
 
     /* traverse the commands list, printing out the relevant documentation */
     while (np) {
-        command_t *command = np->data;
+        command_t *command = (command_t*)np->data;
 
         /* remember the default command */
         if (command->command == NULL)
@@ -1223,7 +1223,7 @@ bool handler__shell(globals_t * vars, char **argv, unsigned argc)
         len += strlen(argv[i]);
 
     /* allocate space */
-    command = calloca(len, 1);
+    command = (char*)calloca(len, 1);
 
     /* concatenate strings */
     for (i = 1; i < argc; i++) {
@@ -1401,7 +1401,7 @@ bool handler__dump(globals_t * vars, char **argv, unsigned argc)
         dump_to_file = true;
     }
 
-    buf = malloc(len + sizeof(long));
+    buf = (char*)malloc(len + sizeof(long));
     if (buf == NULL)
     {
         if (dump_f)
@@ -1634,7 +1634,7 @@ bool handler__write(globals_t * vars, char **argv, unsigned argc)
         goto retl;
     }
 
-    buf = malloc(data_width + 8); /* allocate a little bit more, just in case */
+    buf = (char*)malloc(data_width + 8); /* allocate a little bit more, just in case */
     if (buf == NULL)
     {
         show_error("memory allocation failed.\n");

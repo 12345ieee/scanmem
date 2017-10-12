@@ -216,7 +216,7 @@ bool sm_readmaps(pid_t target, list_t *regions, region_scan_level_t region_scan_
                     continue;
 
                 /* allocate a new region structure */
-                if ((map = calloc(1, sizeof(region_t) + strlen(filename))) == NULL) {
+                if ((map = (region_t*)calloc(1, sizeof(region_t) + strlen(filename))) == NULL) {
                     show_error("failed to allocate memory for region.\n");
                     goto error;
                 }

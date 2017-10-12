@@ -41,7 +41,7 @@ allocate_array (matches_and_old_values_array *array, size_t max_bytes)
         sizeof(matches_and_old_values_array) +
         sizeof(matches_and_old_values_swath);
 
-    if (!(array = realloc(array, bytes_to_allocate)))
+    if (!(array = (matches_and_old_values_array*)realloc(array, bytes_to_allocate)))
         return NULL;
 
     array->bytes_allocated = bytes_to_allocate;
@@ -74,7 +74,7 @@ null_terminate (matches_and_old_values_array *array,
 
     if (bytes_needed < array->bytes_allocated) {
         /* reduce array to its final size */
-        if (!(array = realloc(array, bytes_needed)))
+        if (!(array = (matches_and_old_values_array*)realloc(array, bytes_needed)))
             return NULL;
 
         array->bytes_allocated = bytes_needed;

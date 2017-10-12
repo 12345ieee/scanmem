@@ -498,13 +498,13 @@ bool sm_searchregions(globals_t *vars, scan_match_type_t match_type, const userv
         double progress_per_dot;
 
         /* load the next region */
-        r = n->data;
+        r = (region_t*)n->data;
         bytes_per_dot = r->size / NUM_DOTS;
         bytes_at_next_dot = bytes_per_dot;
         progress_per_dot = (double)bytes_per_dot / total_scan_bytes;
 
         /* allocate data array */
-        if ((data = malloc(r->size * sizeof(char))) == NULL) {
+        if ((data = (unsigned char*)malloc(r->size * sizeof(char))) == NULL) {
             show_error("sorry, there was a memory allocation error.\n");
             return false;
         }
