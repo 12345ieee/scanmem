@@ -40,6 +40,17 @@
 #include <signal.h>
 #include <errno.h>
 
+typedef enum {
+    LOG_NONE,
+    LOG_ERROR,
+    LOG_WARNING,
+    LOG_INFO,    /* default */
+    LOG_DEBUG
+} log_level_t;
+
+void sm_set_log_level(log_level_t log_level);
+void sm_set_backend_mode(_Bool backend_mode);
+
 /* prepend 'info: ', output to stderr */
 void show_info(const char *fmt, ...);
 /* prepend 'error: ', output to stderr */

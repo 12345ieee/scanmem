@@ -226,7 +226,6 @@ bool sm_execcommand(globals_t *vars, const char *commandline)
 
     assert(commandline != NULL);
     assert(commands != NULL);
-
     vars->current_cmdline = commandline;
 
     np = commands->head;

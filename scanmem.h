@@ -39,27 +39,27 @@
 
 /* global settings */
 typedef struct {
-    unsigned exit:1;
+    _Bool exit;
+    volatile _Bool stop_flag;
     pid_t target;
     matches_and_old_values_array *matches;
     unsigned long num_matches;
     double scan_progress;
-    volatile bool stop_flag;
     list_t *regions;
     list_t *commands;              /* command handlers */
     const char *current_cmdline;   /* the command being executed */
     void (*printversion)(FILE *outfd);
     struct {
-        unsigned short alignment;
-        unsigned short debug;
-        unsigned short backend;    /* if 1, scanmem will work as a backend and
+        unsigned debug:1;
+        unsigned backend:1;        /* if 1, scanmem will work as a backend and
                                       output will be more machine-readable */
-
-        /* options that can be changed during runtime */
+        unsigned dump_with_ascii:1;
+        unsigned reverse_endianness:1;
+        unsigned _future_options_padding1:4;
+        unsigned _future_options_padding2:8;
+        uint16_t alignment;
         scan_data_type_t scan_data_type;
         region_scan_level_t region_scan_level;
-        unsigned short dump_with_ascii;
-        unsigned short reverse_endianness;
     } options;
 } globals_t;
 

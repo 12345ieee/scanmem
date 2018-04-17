@@ -38,21 +38,31 @@
 #include "show_message.h"
 #include "scanmem.h"
 
-void show_info(const char *fmt, ...)
+log_level_t sm_log_level = LOG_INFO;
+_Bool       sm_backend = false;
+
+void sm_set_log_level(log_level_t log_level)
 {
-    va_list args;
-    va_start (args, fmt);
-    fprintf(stderr, "info: ");
-    vfprintf(stderr, fmt, args);
-    va_end (args);
+    sm_log_level = log_level;
+}
+void sm_set_backend_mode(_Bool backend)
+{
+    sm_backend = backend;
+}
+
+void static inline show_message(log_level_t log_level, const char *prefix, const char *fmt, va_list args)
+{
+    if (log_level <= sm_log_level) {
+        fprintf(stderr, "%s", prefix);
+        vfprintf(stderr, fmt, args);
+    }
 }
 
 void show_error(const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    fprintf(stderr, "error: ");
-    vfprintf(stderr, fmt, args);
+    show_message(LOG_ERROR, "error: ", fmt, args);
     va_end (args);
 }
 
@@ -60,19 +70,15 @@ void show_warn(const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    fprintf(stderr, "warn: ");
-    vfprintf(stderr, fmt, args);
+    show_message(LOG_WARNING, "warn: ", fmt, args);
     va_end (args);
 }
 
-void show_user(const char *fmt, ...)
+void show_info(const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    if (!(sm_globals.options.backend))
-    {
-        vfprintf(stderr, fmt, args);
-    }
+    show_message(LOG_INFO, "info: ", fmt, args);
     va_end (args);
 }
 
@@ -80,9 +86,16 @@ void show_debug(const char *fmt, ...)
 {
     va_list args;
     va_start (args, fmt);
-    if (sm_globals.options.debug)
+    show_message(LOG_DEBUG, "debug: ", fmt, args);
+    va_end (args);
+}
+
+void show_user(const char *fmt, ...)
+{
+    va_list args;
+    va_start (args, fmt);
+    if (!sm_backend && sm_log_level >= LOG_INFO)
     {
-        fprintf(stderr, "debug: ");
         vfprintf(stderr, fmt, args);
     }
     va_end (args);
@@ -100,7 +113,7 @@ FILE *get_pager(FILE *fallback_output)
 
     assert(fallback_output != NULL);
 
-    if (sm_globals.options.backend)
+    if (sm_backend)
         return fallback_output;
 
     if ((pager = util_getenv("PAGER")) == NULL || *pager == '\0') {

@@ -48,25 +48,27 @@ void sm_printversion(FILE *outfd)
 
 /* global settings */
 globals_t sm_globals = {
-    0,                          /* exit flag */
+    false,                      /* exit flag */
+    false,                      /* stop flag */
     0,                          /* pid target */
     NULL,                       /* matches */
     0,                          /* match count */
     0,                          /* scan progress */
-    false,                      /* stop flag */
     NULL,                       /* regions */
     NULL,                       /* commands */
     NULL,                       /* current_cmdline */
     sm_printversion,            /* printversion() pointer */
     /* options */
     {
-        1,                      /* alignment */
         0,                      /* debug */
         0,                      /* backend */
-        ANYINTEGER,             /* scan_data_type */
-        REGION_HEAP_STACK_EXECUTABLE_BSS, /* region_detail_level */ 
         1,                      /* dump_with_ascii */
         0,                      /* reverse_endianness */
+        0,                      /* padding1 */
+        0,                      /* padding2 */
+        1,                      /* alignment */
+        ANYINTEGER,             /* scan_data_type */
+        REGION_HEAP_STACK_EXECUTABLE_BSS, /* region_scan_level */
     }
 };
 
@@ -107,6 +109,13 @@ out:
 bool sm_init(void)
 {
     globals_t *vars = &sm_globals;
+
+
+    /* set logging variables */
+    if (vars->options.debug)
+        sm_set_log_level(LOG_DEBUG);
+    if (vars->options.backend)
+        sm_set_backend_mode(true);
 
     /* before attaching to target, install signal handler to detach on error */
     if (vars->options.debug == 0) /* in debug mode, let it crash and see the core dump */
